@@ -5,7 +5,7 @@ import { Assistant, type AssistantReply, type ChatTurn } from './assistant';
 import { OpenAICompatAssistant, describeNetworkError, OPENAI_TOOLS } from './openaiAssistant';
 
 export interface AssistantClient {
-  send(history: ChatTurn[], message: string): Promise<AssistantReply>;
+  send(history: ChatTurn[], message: string, context?: string): Promise<AssistantReply>;
 }
 
 function isLocal(url: string): boolean {

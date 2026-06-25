@@ -17,12 +17,16 @@ export class Assistant {
     });
   }
 
-  /** Send a user message; resolves to the final text plus the tools that ran. */
-  async send(history: ChatTurn[], message: string): Promise<AssistantReply> {
+  /** Send a user message (with an optional live map snapshot as context);
+   *  resolves to the final text plus the tools that ran. */
+  async send(history: ChatTurn[], message: string, context?: string): Promise<AssistantReply> {
     const chat = this.model.startChat({
       history: history.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
     });
-    let result = await chat.sendMessage(message);
+    const payload = context
+      ? `${message}\n\n--- Live snapshot of aircraft on the user's map right now ---\n${context}`
+      : message;
+    let result = await chat.sendMessage(payload);
     const toolsUsed: string[] = [];
     // Tool-call loop: keep dispatching until the model returns plain text.
     for (let i = 0; i < 5; i++) {

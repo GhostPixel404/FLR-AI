@@ -63,10 +63,11 @@ export class OpenAICompatAssistant {
     return res.json();
   }
 
-  async send(history: ChatTurn[], message: string): Promise<AssistantReply> {
+  async send(history: ChatTurn[], message: string, context?: string): Promise<AssistantReply> {
     const messages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...history.map((t): ChatMessage => ({ role: t.role === 'model' ? 'assistant' : 'user', content: t.text })),
+      ...(context ? [{ role: 'system' as const, content: `Live snapshot of aircraft on the user's map right now:\n${context}` }] : []),
       { role: 'user', content: message },
     ];
     const toolsUsed: string[] = [];
