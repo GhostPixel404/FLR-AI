@@ -4,7 +4,7 @@ import { toolDeclarations, dispatchTool, type ToolActions } from './tools';
 
 // Map our tool declarations to the OpenAI "tools" shape (used by OpenRouter,
 // Ollama, and any other OpenAI-compatible endpoint).
-const OPENAI_TOOLS = toolDeclarations.map((d) => ({
+export const OPENAI_TOOLS = toolDeclarations.map((d) => ({
   type: 'function',
   function: { name: d.name, description: d.description, parameters: d.parameters },
 }));
@@ -70,13 +70,32 @@ export class OpenAICompatAssistant {
       { role: 'user', content: message },
     ];
     const toolsUsed: string[] = [];
+    let toolsDisabled = false;
+    let noToolSupport = false;
 
-    for (let i = 0; i < 5; i++) {
-      const data = await this.post(messages, true);
+    for (let i = 0; i < 6; i++) {
+      let data;
+      try {
+        data = await this.post(messages, !toolsDisabled);
+      } catch (e) {
+        // Some models/endpoints reject requests that include tools. Fall back to
+        // a plain chat (no map control) and tell the user once.
+        const m = (e as Error).message;
+        if (!toolsDisabled && /tool use|support tools?|no endpoints/i.test(m)) {
+          toolsDisabled = true; noToolSupport = true;
+          continue;
+        }
+        throw e;
+      }
       const msg = data.choices?.[0]?.message as ChatMessage | undefined;
       if (!msg) throw new Error('Empty response from model');
-      const calls = msg.tool_calls ?? [];
-      if (calls.length === 0) return { text: msg.content ?? '', toolsUsed };
+      const calls = toolsDisabled ? [] : (msg.tool_calls ?? []);
+      if (calls.length === 0) {
+        const note = noToolSupport
+          ? "⚠ This model can't use tools, so I can't control the map or read live flight data. Pick a tool-capable model in Settings (look for the “Tools” badge on OpenRouter) for full features.\n\n"
+          : '';
+        return { text: note + (msg.content ?? ''), toolsUsed };
+      }
 
       messages.push(msg);
       for (const c of calls) {
@@ -90,8 +109,8 @@ export class OpenAICompatAssistant {
       }
     }
 
-    // Tool loop exhausted — ask once more without tools to get a final answer.
+    // Loop exhausted — ask once more without tools to get a final answer.
     const data = await this.post(messages, false);
-    return { text: data.choices?.[0]?.message?.content ?? '', toolsUsed };
+    return { text: (data.choices?.[0]?.message?.content as string) ?? '', toolsUsed };
   }
 }

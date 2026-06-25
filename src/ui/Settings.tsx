@@ -74,10 +74,10 @@ export default function Settings() {
           </div>
           <div className="form-row">
             <label>Model</label>
-            <input className="field" placeholder="e.g. meta-llama/llama-3.3-70b-instruct:free or llama3.1"
+            <input className="field" placeholder="e.g. google/gemini-2.0-flash-exp:free"
               value={settings.openaiModel} onChange={(e) => update({ openaiModel: e.target.value })} />
           </div>
-          <div className="muted">OpenRouter: grab a free key + pick a <code>:free</code> tool-capable model at openrouter.ai. Ollama: <code>ollama serve</code> with <code>OLLAMA_ORIGINS={'*'}</code> and a tool-capable model (llama3.1, qwen2.5).</div>
+          <div className="muted">The model <strong>must support tools</strong> (function calling) or the assistant can't control the map. On OpenRouter, filter models by the <strong>“Tools”</strong> badge — good free picks: <code>google/gemini-2.0-flash-exp:free</code> or <code>meta-llama/llama-3.3-70b-instruct:free</code>. Ollama: <code>OLLAMA_ORIGINS={'*'} ollama serve</code> with a tool model (<code>llama3.1</code>, <code>qwen2.5</code>). Use <strong>Test connection</strong> below to check.</div>
         </>
       )}
 

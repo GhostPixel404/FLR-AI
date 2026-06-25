@@ -61,6 +61,18 @@ async function addOverlay(map: maplibregl.Map) {
   }
 }
 
+/**
+ * Ensure the overlay exists, polling until the (current) style is fully loaded.
+ * Reliable for both the initial load and after `setStyle` — unlike the
+ * `styledata`/`isStyleLoaded` event timing, which can be missed.
+ */
+function ensureOverlay(map: maplibregl.Map) {
+  // Wait for the (new) style to finish loading; only then is the old source
+  // gone and the new style ready for addLayer. addOverlay dedups internally.
+  if (map.isStyleLoaded()) { void addOverlay(map); return; }
+  setTimeout(() => ensureOverlay(map), 60);
+}
+
 export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: number, lon: number, zoom: number) => void }) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -86,13 +98,9 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     onReady({ flyTo: (lat, lon, zoom) => map.flyTo({ center: [lon, lat], zoom }) });
 
-    // Reliable initial overlay add.
-    map.on('load', () => { void addOverlay(map); });
-    // Re-add after a basemap switch (setStyle wipes custom sources/layers).
-    // Guarded by getSource so it only fires when the overlay is actually missing.
-    map.on('styledata', () => {
-      if (map.isStyleLoaded() && !map.getSource(SRC)) void addOverlay(map);
-    });
+    // Reliable initial overlay add (and a styledata backstop).
+    map.on('load', () => ensureOverlay(map));
+    map.on('styledata', () => ensureOverlay(map));
 
     const updateBounds = () => {
       const b = map.getBounds();
@@ -122,8 +130,9 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     if (key === styleKeyRef.current) return;
     styleKeyRef.current = key;
     map.setStyle(styleFor(basemap));
-    // The persistent 'styledata' handler re-adds the aircraft overlay once the
-    // new style is ready, so flights keep showing after a basemap change.
+    // Poll until the new style is ready, then re-add the aircraft overlay, so
+    // flights keep showing after a basemap change.
+    ensureOverlay(map);
   }, [basemap, theme]);
 
   // Draw / move the "my location" marker and recentre when it updates.

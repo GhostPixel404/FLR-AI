@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { Settings } from '../types';
 import type { ToolActions } from './tools';
 import { Assistant, type AssistantReply, type ChatTurn } from './assistant';
-import { OpenAICompatAssistant, describeNetworkError } from './openaiAssistant';
+import { OpenAICompatAssistant, describeNetworkError, OPENAI_TOOLS } from './openaiAssistant';
 
 export interface AssistantClient {
   send(history: ChatTurn[], message: string): Promise<AssistantReply>;
@@ -65,9 +65,11 @@ export async function testConnection(s: Settings): Promise<TestResult> {
   headers['X-Title'] = 'FLR AI';
   let res: Response;
   try {
+    // Include tools so the test catches models that don't support function
+    // calling — which the assistant needs to do anything useful.
     res = await fetch(url, {
       method: 'POST', headers,
-      body: JSON.stringify({ model: s.openaiModel, max_tokens: 5,
+      body: JSON.stringify({ model: s.openaiModel, max_tokens: 5, tools: OPENAI_TOOLS, tool_choice: 'auto',
         messages: [{ role: 'user', content: 'Reply with the single word: OK' }] }),
     });
   } catch {
@@ -75,16 +77,18 @@ export async function testConnection(s: Settings): Promise<TestResult> {
   }
   if (!res.ok) {
     const detail = (await res.text().catch(() => '')).slice(0, 200);
-    const hint = res.status === 401 ? ' — the API key was rejected.'
+    const noTools = /tool use|support tools?|no endpoints/i.test(detail);
+    const hint = noTools ? ` — this model doesn't support tool use. Pick a model with the “Tools” badge on OpenRouter.`
+      : res.status === 401 ? ' — the API key was rejected.'
       : res.status === 404 ? ` — model "${s.openaiModel}" not found; check the exact ID.`
       : res.status === 429 ? ' — rate limited; wait, or add a little OpenRouter credit.'
       : '';
-    return { ok: false, message: `HTTP ${res.status}${hint}${detail ? ` (${detail})` : ''}` };
+    return { ok: false, message: `HTTP ${res.status}${hint}${!noTools && detail ? ` (${detail})` : ''}` };
   }
   const data = await res.json().catch(() => null);
-  const text = data?.choices?.[0]?.message?.content;
-  if (text == null) {
+  const msg = data?.choices?.[0]?.message;
+  if (!msg) {
     return { ok: false, message: 'Reached the endpoint but got an unexpected response. Is the model OpenAI-compatible?' };
   }
-  return { ok: true, message: `Connected to ${s.openaiModel}.` };
+  return { ok: true, message: `Connected to ${s.openaiModel} — tools supported. ✈` };
 }
