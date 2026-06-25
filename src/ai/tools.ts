@@ -36,7 +36,7 @@ export const toolDeclarations = [
   { name: 'flyTo', description: 'Move the map to a named place — an airport, city, country, or landmark (e.g. "Heathrow Airport", "Tokyo", "Switzerland"). Resolves the name to coordinates.',
     parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'clearFilters', description: 'Remove all filters.', parameters: { type: 'object', properties: {} } },
-  { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type, airline callsign prefix, military, emergency, belowAltitude).',
+  { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type, airline callsign prefix, military, emergency, belowAltitude). Results include a distanceNm field (distance from the current map centre) and are sorted nearest-first; a "nearest" field holds the closest match. Use this to answer "nearest"/"closest" questions and to find a hex id to track.',
     parameters: { type: 'object', properties: {
       type: { type: 'string' }, airline: { type: 'string' },
       military: { type: 'boolean' }, emergency: { type: 'boolean' },
@@ -65,7 +65,8 @@ export const toolDeclarations = [
 function summarizeAircraft(a: Aircraft) {
   return { hex: a.hex, callsign: a.callsign, type: a.type, registration: a.registration,
     altitude: a.altitude, groundSpeed: a.groundSpeed, squawk: a.squawk,
-    military: a.military, onGround: a.onGround };
+    military: a.military, onGround: a.onGround,
+    distanceNm: a.distanceNm != null ? Math.round(a.distanceNm) : null };
 }
 
 export async function dispatchTool(
@@ -96,7 +97,14 @@ export async function dispatchTool(
         if (args.belowAltitude != null && (a.altitude ?? Infinity) >= args.belowAltitude) return false;
         return true;
       });
-      return { count: list.length, aircraft: list.slice(0, 30).map(summarizeAircraft) };
+      // Sort nearest-first (distanceNm is from the current map centre) so the
+      // model can answer "nearest" questions and track the closest match.
+      list.sort((a, b) => (a.distanceNm ?? Infinity) - (b.distanceNm ?? Infinity));
+      return {
+        count: list.length,
+        nearest: list[0] ? summarizeAircraft(list[0]) : null,
+        aircraft: list.slice(0, 30).map(summarizeAircraft),
+      };
     }
     case 'trackAircraft':
       return { ok: actions.trackAircraft(args.hex) };
