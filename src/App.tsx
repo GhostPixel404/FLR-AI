@@ -8,6 +8,7 @@ import ChatPanel from './ui/ChatPanel';
 import AlertsManager from './ui/AlertsManager';
 import StatsDashboard from './ui/StatsDashboard';
 import Settings from './ui/Settings';
+import MapControls from './ui/MapControls';
 import Toasts from './ui/Toasts';
 import { useStore } from './store/useStore';
 import { AirplanesLiveProvider } from './data/airplanesLive';
@@ -62,6 +63,8 @@ export default function App() {
       <div className="map-host">
         <MapView onReady={(api) => (mapApiRef.current = api)} />
       </div>
+
+      <MapControls />
 
       {stale && (
         <div className="stale-pill glass glass-thick">

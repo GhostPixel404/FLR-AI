@@ -44,3 +44,6 @@ export const LocateIcon = (p: IconProps) => (
 export const ArrowRightIcon = (p: IconProps) => (
   <svg {...base({ ...p, size: p.size ?? 18 })}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 );
+export const LayersIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="m12 2 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" /></svg>
+);

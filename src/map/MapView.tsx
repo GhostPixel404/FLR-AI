@@ -7,56 +7,79 @@ import { toGeoJSON } from './aircraftLayer';
 import { loadPlaneImage } from './icons';
 import { deadReckon } from '../poll/interpolate';
 import { getTrailLine } from '../poll/trails';
+import { styleFor } from './basemaps';
 
-// Clean, Apple-Maps-like basemaps (free, keyless, CORS-open). Picked once at
-// load from the system color scheme so the map matches the Liquid Glass chrome.
-const STYLE = window.matchMedia('(prefers-color-scheme: dark)').matches
-  ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-  : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const SRC = 'aircraft';
+
+/** Run `cb` once the (current) style is fully loaded. */
+function whenStyleReady(map: maplibregl.Map, cb: () => void) {
+  if (map.isStyleLoaded()) { cb(); return; }
+  const handler = () => {
+    if (map.isStyleLoaded()) { map.off('styledata', handler); cb(); }
+  };
+  map.on('styledata', handler);
+}
+
+/** Add the aircraft / trail / emergency overlay on top of the current basemap.
+ *  Safe to call repeatedly — a style switch wipes these, so we re-add them. */
+async function addOverlay(map: maplibregl.Map) {
+  if (map.getSource(SRC)) return; // already present for this style
+  if (!map.hasImage('plane')) {
+    const img = await loadPlaneImage();
+    if (!map.hasImage('plane')) map.addImage('plane', img, { sdf: true });
+  }
+  if (map.getSource(SRC)) return; // guard against the await racing a second call
+
+  map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'aircraft-layer', type: 'symbol', source: SRC,
+    layout: {
+      'icon-image': 'plane', 'icon-rotate': ['get', 'rotation'],
+      'icon-allow-overlap': true, 'icon-size': 0.85,
+      'icon-rotation-alignment': 'map',
+    },
+    paint: {
+      'icon-color': ['case', ['get', 'emergency'], '#ff453a',
+        ['get', 'selected'], '#ff9f0a', ['get', 'military'], '#30d158', '#0a84ff'],
+    },
+  });
+  map.addLayer({
+    id: 'emergency-halo', type: 'circle', source: SRC,
+    filter: ['==', ['get', 'emergency'], true],
+    paint: { 'circle-radius': 16, 'circle-color': '#ff453a', 'circle-opacity': 0.3 },
+  }, 'aircraft-layer');
+  map.addSource('trail', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'trail-line', type: 'line', source: 'trail',
+    paint: { 'line-color': '#ff9f0a', 'line-width': 2.5, 'line-opacity': 0.85 },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+  }, 'aircraft-layer');
+}
 
 export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: number, lon: number, zoom: number) => void }) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const lastToastRef = useRef<number>(0);
   const lastFollowRef = useRef<number>(0);
+  const locMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const basemap = useStore((s) => s.settings.basemap);
+  const myLocation = useStore((s) => s.myLocation);
+  const basemapRef = useRef(basemap);
 
+  // Init the map once.
   useEffect(() => {
     if (!containerRef.current) return;
     const map = new maplibregl.Map({
-      container: containerRef.current, style: STYLE, center: [-0.45, 51.47], zoom: 9,
+      container: containerRef.current,
+      style: styleFor(basemapRef.current),
+      center: [-0.45, 51.47], zoom: 9,
+      attributionControl: false,
     });
     mapRef.current = map;
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     onReady({ flyTo: (lat, lon, zoom) => map.flyTo({ center: [lon, lat], zoom }) });
 
-    map.on('load', async () => {
-      const img = await loadPlaneImage();
-      map.addImage('plane', img, { sdf: true });
-      map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-      map.addLayer({
-        id: 'aircraft-layer', type: 'symbol', source: SRC,
-        layout: {
-          'icon-image': 'plane', 'icon-rotate': ['get', 'rotation'],
-          'icon-allow-overlap': true, 'icon-size': 0.8,
-          'icon-rotation-alignment': 'map',
-        },
-        paint: {
-          'icon-color': ['case', ['get', 'emergency'], '#dc2626',
-            ['get', 'selected'], '#f59e0b', ['get', 'military'], '#16a34a', '#1d4ed8'],
-        },
-      });
-      map.addLayer({
-        id: 'emergency-halo', type: 'circle', source: SRC,
-        filter: ['==', ['get', 'emergency'], true],
-        paint: { 'circle-radius': 16, 'circle-color': '#dc2626', 'circle-opacity': 0.3 },
-      }, 'aircraft-layer');
-      map.addSource('trail', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-      map.addLayer({
-        id: 'trail-line', type: 'line', source: 'trail',
-        paint: { 'line-color': '#f59e0b', 'line-width': 2, 'line-opacity': 0.8 },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      }, 'aircraft-layer');
-    });
+    map.on('load', () => { void addOverlay(map); });
 
     const updateBounds = () => {
       const b = map.getBounds();
@@ -76,6 +99,29 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
 
     return () => map.remove();
   }, []);
+
+  // Switch basemap when the setting changes (re-adding the overlay afterwards).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || basemap === basemapRef.current) return;
+    basemapRef.current = basemap;
+    map.setStyle(styleFor(basemap));
+    whenStyleReady(map, () => { void addOverlay(map); });
+  }, [basemap]);
+
+  // Draw / move the "my location" marker and recentre when it updates.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !myLocation) return;
+    if (!locMarkerRef.current) {
+      const el = document.createElement('div');
+      el.className = 'my-location';
+      el.innerHTML = '<span class="my-location__dot"></span>';
+      locMarkerRef.current = new maplibregl.Marker({ element: el });
+    }
+    locMarkerRef.current.setLngLat([myLocation.lon, myLocation.lat]).addTo(map);
+    map.flyTo({ center: [myLocation.lon, myLocation.lat], zoom: Math.max(map.getZoom(), 10), duration: 900 });
+  }, [myLocation]);
 
   // Smooth render loop: re-project with dead reckoning every animation frame.
   useEffect(() => {

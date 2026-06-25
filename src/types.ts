@@ -59,12 +59,15 @@ export interface Sighting {
   count: number;                // number of polls seen in
 }
 
+export type BasemapId = 'auto' | 'light' | 'dark' | 'satellite';
+
 export interface Settings {
   geminiApiKey: string;
   geminiModel: string;
   units: UnitSystem;
   refreshSeconds: number;
   home: { lat: number; lon: number } | null;
+  basemap: BasemapId;
 }
 
 export const EMERGENCY_SQUAWKS = ['7500', '7600', '7700'] as const;

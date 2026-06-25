@@ -6,7 +6,7 @@ const SETTINGS_KEY = 'flr.settings';
 
 const defaultSettings: Settings = {
   geminiApiKey: '', geminiModel: 'gemini-2.5-flash', units: 'imperial',
-  refreshSeconds: 6, home: null,
+  refreshSeconds: 6, home: null, basemap: 'auto',
 };
 
 function loadSettings(): Settings {
@@ -24,6 +24,7 @@ interface AppState {
   bounds: Bounds | null;
   settings: Settings;
   stale: boolean;
+  myLocation: { lat: number; lon: number } | null;
   setAircraft: (list: Aircraft[]) => void;
   select: (hex: string | null) => void;
   follow: (hex: string | null) => void;
@@ -32,6 +33,7 @@ interface AppState {
   setBounds: (b: Bounds) => void;
   setStale: (s: boolean) => void;
   updateSettings: (patch: Partial<Settings>) => void;
+  setMyLocation: (loc: { lat: number; lon: number } | null) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -42,6 +44,7 @@ export const useStore = create<AppState>((set, get) => ({
   bounds: null,
   settings: loadSettings(),
   stale: false,
+  myLocation: null,
   setAircraft: (list) => set({ aircraft: new Map(list.map((a) => [a.hex, a])) }),
   select: (hex) => set({ selectedHex: hex }),
   follow: (hex) => set({ followedHex: hex }),
@@ -54,6 +57,7 @@ export const useStore = create<AppState>((set, get) => ({
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     set({ settings });
   },
+  setMyLocation: (loc) => set({ myLocation: loc }),
 }));
 
 export function visibleAircraft(state: AppState): Aircraft[] {
