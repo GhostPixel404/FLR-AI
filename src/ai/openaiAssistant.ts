@@ -9,6 +9,17 @@ const OPENAI_TOOLS = toolDeclarations.map((d) => ({
   function: { name: d.name, description: d.description, parameters: d.parameters },
 }));
 
+/** A human-readable explanation for a failed fetch to an OpenAI-compatible URL. */
+export function describeNetworkError(baseUrl: string): string {
+  const isLocal = /^http:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/.test(baseUrl);
+  if (location.protocol === 'https:' && isLocal) {
+    return `Can't reach a local server (${baseUrl}) from the HTTPS site — browsers block http://localhost from an https page (mixed content). ` +
+      `Run the app locally (\`bun run dev\` → http://localhost:5173), or use OpenRouter instead.`;
+  }
+  return `Couldn't reach ${baseUrl}. Make sure the server is running and reachable. ` +
+    `For Ollama, start it with \`OLLAMA_ORIGINS=* ollama serve\` so the browser is allowed to call it.`;
+}
+
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string | null;
@@ -43,17 +54,7 @@ export class OpenAICompatAssistant {
     } catch {
       // fetch throws a TypeError ("Load failed" / "Failed to fetch") on
       // network, CORS, or mixed-content errors — explain the likely cause.
-      const isLocal = /^http:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/.test(this.baseUrl);
-      if (location.protocol === 'https:' && isLocal) {
-        throw new Error(
-          `Can't reach a local server (${this.baseUrl}) from the HTTPS site — browsers block http://localhost from an https page (mixed content). ` +
-          `Run the app locally (\`bun run dev\` → http://localhost:5173), or use OpenRouter instead.`,
-        );
-      }
-      throw new Error(
-        `Couldn't reach ${this.baseUrl}. Make sure the server is running and reachable. ` +
-        `For Ollama, start it with \`OLLAMA_ORIGINS=* ollama serve\` so the browser is allowed to call it.`,
-      );
+      throw new Error(describeNetworkError(this.baseUrl));
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => '');

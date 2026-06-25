@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { locateMe } from '../util/locate';
 import { BASEMAP_OPTIONS } from '../map/basemaps';
+import { testConnection, type TestResult } from '../ai/createAssistant';
 import { LocateIcon } from './icons';
 
 const UNIT_OPTIONS = [
@@ -18,6 +20,15 @@ export default function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
   const home = settings.home;
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState<TestResult | null>(null);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTest(null);
+    setTest(await testConnection(settings));
+    setTesting(false);
+  };
   return (
     <div className="pane scroll-area">
       <div className="section-label">AI provider</div>
@@ -68,6 +79,15 @@ export default function Settings() {
           </div>
           <div className="muted">OpenRouter: grab a free key + pick a <code>:free</code> tool-capable model at openrouter.ai. Ollama: <code>ollama serve</code> with <code>OLLAMA_ORIGINS={'*'}</code> and a tool-capable model (llama3.1, qwen2.5).</div>
         </>
+      )}
+
+      <button className="btn btn--block" style={{ marginTop: 4 }} onClick={runTest} disabled={testing}>
+        {testing ? 'Testing…' : 'Test connection'}
+      </button>
+      {test && (
+        <div className={`test-result ${test.ok ? 'test-result--ok' : 'test-result--fail'}`}>
+          {test.ok ? '✓ ' : '⚠ '}{test.message}
+        </div>
       )}
 
       <div className="section-label">Appearance</div>
