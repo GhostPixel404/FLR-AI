@@ -18,26 +18,21 @@ function styleKey(basemap: BasemapId, theme: ThemePref): string {
   return basemap === 'auto' ? `auto:${effectiveTheme(theme)}` : basemap;
 }
 
-/** Run `cb` once the (current) style is fully loaded. */
-function whenStyleReady(map: maplibregl.Map, cb: () => void) {
-  if (map.isStyleLoaded()) { cb(); return; }
-  const handler = () => {
-    if (map.isStyleLoaded()) { map.off('styledata', handler); cb(); }
-  };
-  map.on('styledata', handler);
-}
-
 /** Add the aircraft / trail / emergency overlay on top of the current basemap.
  *  Safe to call repeatedly — a style switch wipes these, so we re-add them. */
 async function addOverlay(map: maplibregl.Map) {
-  if (map.getSource(SRC)) return; // already present for this style
-  if (!map.hasImage('plane')) {
-    const img = await loadPlaneImage();
-    if (!map.hasImage('plane')) map.addImage('plane', img, { sdf: true });
-  }
-  if (map.getSource(SRC)) return; // guard against the await racing a second call
+  if (map.getSource(SRC)) return;                 // already present for this style
+  const m = map as maplibregl.Map & { __overlayBusy?: boolean };
+  if (m.__overlayBusy) return;                    // re-entrancy guard during await
+  m.__overlayBusy = true;
+  try {
+    if (!map.hasImage('plane')) {
+      const img = await loadPlaneImage();
+      if (!map.hasImage('plane')) map.addImage('plane', img, { sdf: true });
+    }
+    if (map.getSource(SRC)) return;
 
-  map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({
     id: 'aircraft-layer', type: 'symbol', source: SRC,
     layout: {
@@ -61,6 +56,9 @@ async function addOverlay(map: maplibregl.Map) {
     paint: { 'line-color': '#ff9f0a', 'line-width': 2.5, 'line-opacity': 0.85 },
     layout: { 'line-cap': 'round', 'line-join': 'round' },
   }, 'aircraft-layer');
+  } finally {
+    m.__overlayBusy = false;
+  }
 }
 
 export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: number, lon: number, zoom: number) => void }) => void }) {
@@ -68,6 +66,7 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
   const mapRef = useRef<maplibregl.Map | null>(null);
   const lastToastRef = useRef<number>(0);
   const lastFollowRef = useRef<number>(0);
+  const lastDataRef = useRef<number>(0);
   const locMarkerRef = useRef<maplibregl.Marker | null>(null);
   const basemap = useStore((s) => s.settings.basemap);
   const theme = useStore((s) => s.settings.theme);
@@ -87,7 +86,10 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     onReady({ flyTo: (lat, lon, zoom) => map.flyTo({ center: [lon, lat], zoom }) });
 
-    map.on('load', () => { void addOverlay(map); });
+    // Re-add the overlay whenever a style finishes loading — covers the initial
+    // load AND every basemap switch (setStyle wipes custom sources/layers).
+    // addOverlay is idempotent, so calling it on each styledata is cheap.
+    map.on('styledata', () => { if (map.isStyleLoaded()) void addOverlay(map); });
 
     const updateBounds = () => {
       const b = map.getBounds();
@@ -117,7 +119,8 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     if (key === styleKeyRef.current) return;
     styleKeyRef.current = key;
     map.setStyle(styleFor(basemap));
-    whenStyleReady(map, () => { void addOverlay(map); });
+    // The persistent 'styledata' handler re-adds the aircraft overlay once the
+    // new style is ready, so flights keep showing after a basemap change.
   }, [basemap, theme]);
 
   // Draw / move the "my location" marker and recentre when it updates.
@@ -134,50 +137,50 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     map.flyTo({ center: [myLocation.lon, myLocation.lat], zoom: Math.max(map.getZoom(), 10), duration: 900 });
   }, [myLocation]);
 
-  // Smooth render loop: re-project with dead reckoning every animation frame.
+  // Smooth render loop. Runs on rAF but only rebuilds the GeoJSON ~14×/sec so
+  // it stays light even with many aircraft (still smooth via dead reckoning).
   useEffect(() => {
     let raf = 0;
     const render = () => {
+      raf = requestAnimationFrame(render);
       const map = mapRef.current;
-      const state = useStore.getState();
-      if (map && map.getSource(SRC)) {
-        if (map.getZoom() < 5) {
-          (map.getSource(SRC) as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features: [] });
-          if (map.getSource('trail')) {
-            (map.getSource('trail') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features: [] });
-          }
-          const now = Date.now();
-          if (now - lastToastRef.current > 10_000) {
-            lastToastRef.current = now;
-            window.dispatchEvent(new CustomEvent('flr-toast', { detail: 'Zoom in to see aircraft' }));
-          }
-          raf = requestAnimationFrame(render);
-          return;
+      if (!map || !map.getSource(SRC)) return;
+      const now = Date.now();
+      if (now - lastDataRef.current < 70) return;
+      lastDataRef.current = now;
+
+      const src = map.getSource(SRC) as maplibregl.GeoJSONSource;
+      const trail = map.getSource('trail') as maplibregl.GeoJSONSource | undefined;
+
+      // Only hide aircraft at a very wide world view (keeps them visible when
+      // zoomed out without forcing the user to zoom in).
+      if (map.getZoom() < 3) {
+        src.setData({ type: 'FeatureCollection', features: [] });
+        trail?.setData({ type: 'FeatureCollection', features: [] });
+        if (now - lastToastRef.current > 10_000) {
+          lastToastRef.current = now;
+          window.dispatchEvent(new CustomEvent('flr-toast', { detail: 'Zoom in to see aircraft' }));
         }
-        const filtered = Array.from(state.aircraft.values()).filter((a) =>
-          matchesFilters(a, state.filters));
-        const projected = filtered.map((a) => {
-          const secs = (Date.now() - a.lastUpdate) / 1000;
-          const p = deadReckon(a, secs);
+        return;
+      }
+
+      const state = useStore.getState();
+      const projected = Array.from(state.aircraft.values())
+        .filter((a) => matchesFilters(a, state.filters))
+        .map((a) => {
+          const p = deadReckon(a, (now - a.lastUpdate) / 1000);
           return { ...a, lat: p.lat, lon: p.lon };
         });
-        (map.getSource(SRC) as maplibregl.GeoJSONSource).setData(
-          toGeoJSON(projected, state.selectedHex));
-        if (map.getSource('trail')) {
-          (map.getSource('trail') as maplibregl.GeoJSONSource).setData(getTrailLine(state.selectedHex));
-        }
-        if (state.followedHex) {
-          const f = projected.find((a) => a.hex === state.followedHex);
-          if (f) {
-            const now = Date.now();
-            if (now - lastFollowRef.current > 1000) {
-              lastFollowRef.current = now;
-              map.easeTo({ center: [f.lon, f.lat], duration: 800 });
-            }
-          }
+      src.setData(toGeoJSON(projected, state.selectedHex));
+      trail?.setData(getTrailLine(state.selectedHex));
+
+      if (state.followedHex) {
+        const f = projected.find((a) => a.hex === state.followedHex);
+        if (f && now - lastFollowRef.current > 1000) {
+          lastFollowRef.current = now;
+          map.easeTo({ center: [f.lon, f.lat], duration: 800 });
         }
       }
-      raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
     return () => cancelAnimationFrame(raf);

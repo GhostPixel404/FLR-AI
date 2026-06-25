@@ -60,7 +60,11 @@ export function startPolling(
     if (!lastTickFailed) consecutiveErrors = 0;
     running = false;
     if (!stopped) {
-      const delay = intervalMs() * Math.min(Math.pow(2, consecutiveErrors), 8);
+      // If bounds aren't ready yet (map still loading), retry quickly so the
+      // first flights appear fast instead of after a full interval.
+      const delay = !bounds
+        ? 250
+        : intervalMs() * Math.min(Math.pow(2, consecutiveErrors), 8);
       timer = setTimeout(tick, delay);
     }
   };

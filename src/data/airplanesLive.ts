@@ -10,12 +10,21 @@ interface RawAircraft {
   lat?: number; lon?: number; seen?: number; dst?: number;
 }
 
+/** Clean a raw callsign. Feeds emit placeholders like "@@@@@@" when no valid
+ *  callsign is available — treat those (and blanks) as unknown. */
+function cleanCallsign(flight?: string): string | null {
+  if (!flight) return null;
+  const t = flight.trim();
+  if (!t || /^@+$/.test(t)) return null;
+  return t;
+}
+
 export function normalizeAircraft(raw: RawAircraft, now: number): Aircraft {
   const onGround = raw.alt_baro === 'ground';
   const altitude = typeof raw.alt_baro === 'number' ? raw.alt_baro : null;
   return {
     hex: raw.hex,
-    callsign: raw.flight ? raw.flight.trim() || null : null,
+    callsign: cleanCallsign(raw.flight),
     registration: raw.r ?? null,
     type: raw.t ?? null,
     description: raw.desc ?? null,

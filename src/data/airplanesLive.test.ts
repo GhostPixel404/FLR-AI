@@ -36,6 +36,10 @@ describe('normalizeAircraft', () => {
     const a = normalizeAircraft(RAW.ac[2], 1000);
     expect(a.military).toBe(true);
   });
+  it('treats placeholder "@@@@@@" callsigns as unknown', () => {
+    const a = normalizeAircraft({ hex: 'x', flight: '@@@@@@  ', lat: 1, lon: 1 }, 1000);
+    expect(a.callsign).toBeNull();
+  });
 });
 
 describe('AirplanesLiveProvider', () => {
