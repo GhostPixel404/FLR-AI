@@ -1,0 +1,61 @@
+import { create } from 'zustand';
+import { DEFAULT_FILTERS, type Aircraft, type Filters, type Settings } from '../types';
+import type { Bounds } from '../util/geo';
+
+const SETTINGS_KEY = 'flr.settings';
+
+const defaultSettings: Settings = {
+  geminiApiKey: '', geminiModel: 'gemini-2.5-flash', units: 'imperial',
+  refreshSeconds: 6, home: null,
+};
+
+function loadSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? { ...defaultSettings, ...JSON.parse(raw) } : defaultSettings;
+  } catch { return defaultSettings; }
+}
+
+interface AppState {
+  aircraft: Map<string, Aircraft>;
+  selectedHex: string | null;
+  followedHex: string | null;
+  filters: Filters;
+  bounds: Bounds | null;
+  settings: Settings;
+  stale: boolean;
+  setAircraft: (list: Aircraft[]) => void;
+  select: (hex: string | null) => void;
+  follow: (hex: string | null) => void;
+  setFilters: (patch: Partial<Filters>) => void;
+  clearFilters: () => void;
+  setBounds: (b: Bounds) => void;
+  setStale: (s: boolean) => void;
+  updateSettings: (patch: Partial<Settings>) => void;
+}
+
+export const useStore = create<AppState>((set, get) => ({
+  aircraft: new Map(),
+  selectedHex: null,
+  followedHex: null,
+  filters: DEFAULT_FILTERS,
+  bounds: null,
+  settings: loadSettings(),
+  stale: false,
+  setAircraft: (list) => set({ aircraft: new Map(list.map((a) => [a.hex, a])) }),
+  select: (hex) => set({ selectedHex: hex }),
+  follow: (hex) => set({ followedHex: hex }),
+  setFilters: (patch) => set({ filters: { ...get().filters, ...patch } }),
+  clearFilters: () => set({ filters: DEFAULT_FILTERS }),
+  setBounds: (b) => set({ bounds: b }),
+  setStale: (s) => set({ stale: s }),
+  updateSettings: (patch) => {
+    const settings = { ...get().settings, ...patch };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    set({ settings });
+  },
+}));
+
+export function visibleAircraft(state: AppState): Aircraft[] {
+  return Array.from(state.aircraft.values());
+}
