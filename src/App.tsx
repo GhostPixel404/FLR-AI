@@ -16,6 +16,7 @@ import { startPolling } from './poll/pollLoop';
 import { recordSightings } from './stats/statsStore';
 import { evaluateAlerts } from './alerts/alertStore';
 import { recordPositions } from './poll/trails';
+import { locateMe } from './util/locate';
 import { PlaneIcon, ChatIcon, BellIcon, ChartIcon, GearIcon, SunIcon, MoonIcon } from './ui/icons';
 import { applyTheme, effectiveTheme } from './util/theme';
 
@@ -44,6 +45,10 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Center on the user's current location at startup (silent — falls back to the
+  // default view if permission is denied/unavailable).
+  useEffect(() => { locateMe({ silent: true }); }, []);
 
   // Apply the theme; while on "system", track OS changes live.
   useEffect(() => {

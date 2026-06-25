@@ -33,7 +33,7 @@ export const toolDeclarations = [
       type: { type: 'string' }, airline: { type: 'string' },
       military: { type: 'boolean' }, emergency: { type: 'boolean' },
       onGround: { type: 'boolean' } } } },
-  { name: 'flyTo', description: 'Move the map to a named place — an airport, city, country, or landmark (e.g. "Heathrow Airport", "Tokyo", "Switzerland"). Resolves the name to coordinates.',
+  { name: 'flyTo', description: 'Move the map to a place the USER named — an airport, city, country, or landmark. The `query` must come from the user\'s request; never invent or default a location. Resolves the name to coordinates.',
     parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'clearFilters', description: 'Remove all filters.', parameters: { type: 'object', properties: {} } },
   { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type, airline callsign prefix, military, emergency, belowAltitude). Results include a distanceNm field (distance from the current map centre) and are sorted nearest-first; a "nearest" field holds the closest match. Use this to answer "nearest"/"closest" questions and to find a hex id to track.',

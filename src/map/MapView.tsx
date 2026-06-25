@@ -88,10 +88,14 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
   // Init the map once.
   useEffect(() => {
     if (!containerRef.current) return;
+    // Start at the saved location if we have one (startup geolocation will
+    // refine it); otherwise a neutral fallback until location resolves.
+    const home = useStore.getState().settings.home;
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: styleFor(basemap),
-      center: [-0.45, 51.47], zoom: 9,
+      center: home ? [home.lon, home.lat] : [0, 25],
+      zoom: home ? 10 : 3.2,
       attributionControl: false,
     });
     mapRef.current = map;
