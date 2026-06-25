@@ -37,7 +37,24 @@ export class OpenAICompatAssistant {
     const body: Record<string, unknown> = { model: this.model, messages };
     if (withTools) { body.tools = OPENAI_TOOLS; body.tool_choice = 'auto'; }
 
-    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    let res: Response;
+    try {
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    } catch {
+      // fetch throws a TypeError ("Load failed" / "Failed to fetch") on
+      // network, CORS, or mixed-content errors — explain the likely cause.
+      const isLocal = /^http:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/.test(this.baseUrl);
+      if (location.protocol === 'https:' && isLocal) {
+        throw new Error(
+          `Can't reach a local server (${this.baseUrl}) from the HTTPS site — browsers block http://localhost from an https page (mixed content). ` +
+          `Run the app locally (\`bun run dev\` → http://localhost:5173), or use OpenRouter instead.`,
+        );
+      }
+      throw new Error(
+        `Couldn't reach ${this.baseUrl}. Make sure the server is running and reachable. ` +
+        `For Ollama, start it with \`OLLAMA_ORIGINS=* ollama serve\` so the browser is allowed to call it.`,
+      );
+    }
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
       throw new Error(`HTTP ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`);
