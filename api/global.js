@@ -13,7 +13,17 @@ export default async function handler(_req, res) {
   }
 
   try {
-    const r = await fetch('https://opensky-network.org/api/states/all');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 9000);
+    let r;
+    try {
+      r = await fetch('https://opensky-network.org/api/states/all', {
+        headers: { 'User-Agent': 'FLR-AI/1.0 (+https://flr-ai.vercel.app)', Accept: 'application/json' },
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!r.ok) return res.status(502).json({ error: `OpenSky HTTP ${r.status}` });
     const j = await r.json();
     const states = Array.isArray(j.states) ? j.states : [];
@@ -42,6 +52,6 @@ export default async function handler(_req, res) {
     cache = { data, ts: Date.now() };
     return res.status(200).json(data);
   } catch (e) {
-    return res.status(502).json({ error: String(e) });
+    return res.status(502).json({ error: String(e), cause: String(e?.cause ?? '') });
   }
 }
