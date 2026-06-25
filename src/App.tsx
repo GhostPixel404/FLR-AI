@@ -15,8 +15,17 @@ import { startPolling } from './poll/pollLoop';
 import { recordSightings } from './stats/statsStore';
 import { evaluateAlerts } from './alerts/alertStore';
 import { recordPositions } from './poll/trails';
+import { PlaneIcon, ChatIcon, BellIcon, ChartIcon, GearIcon } from './ui/icons';
 
 type Tab = 'flights' | 'chat' | 'alerts' | 'stats' | 'settings';
+
+const TABS: { id: Tab; label: string; Icon: typeof PlaneIcon }[] = [
+  { id: 'flights', label: 'Flights', Icon: PlaneIcon },
+  { id: 'chat', label: 'Assistant', Icon: ChatIcon },
+  { id: 'alerts', label: 'Alerts', Icon: BellIcon },
+  { id: 'stats', label: 'Stats', Icon: ChartIcon },
+  { id: 'settings', label: 'Settings', Icon: GearIcon },
+];
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('flights');
@@ -41,28 +50,55 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-      <div style={{ width: 360, display: 'flex', flexDirection: 'column', borderRight: '1px solid #e5e7eb' }}>
-        <div style={{ display: 'flex', gap: 4, padding: 6, borderBottom: '1px solid #e5e7eb' }}>
-          {(['flights', 'chat', 'alerts', 'stats', 'settings'] as Tab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ fontWeight: tab === t ? 700 : 400 }}>{t}</button>
+    <div className="app">
+      <div className="map-host">
+        <MapView onReady={(api) => (mapApiRef.current = api)} />
+      </div>
+
+      {stale && (
+        <div className="stale-pill glass glass-thick">
+          <span className="stale-pill__dot" />
+          Reconnecting…
+        </div>
+      )}
+
+      <aside className="sidebar glass">
+        <div className="sidebar__brand">
+          <span className="sidebar__brand-mark"><PlaneIcon size={18} /></span>
+          <div>
+            <div className="sidebar__title">FLR AI</div>
+            <div className="sidebar__subtitle">Live flight radar</div>
+          </div>
+        </div>
+
+        <div className="segmented" role="tablist" aria-label="Sections">
+          {TABS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              aria-label={label}
+              className="segmented__item"
+              onClick={() => setTab(id)}
+            >
+              <Icon size={18} />
+              <span className="segmented__label">{label}</span>
+            </button>
           ))}
         </div>
-        {tab === 'flights' && (<>
-          <SearchBox /><FilterBar /><FlightList /><DetailPanel />
-        </>)}
-        {tab === 'chat' && <ChatPanel flyTo={(lat, lon, zoom) => mapApiRef.current.flyTo(lat, lon, zoom)} />}
-        {tab === 'alerts' && <AlertsManager />}
-        {tab === 'stats' && <StatsDashboard />}
-        {tab === 'settings' && <Settings />}
-      </div>
-      <div style={{ position: 'relative', flex: 1 }}>
-        <MapView onReady={(api) => (mapApiRef.current = api)} />
-        {stale && <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 20,
-          background: '#b91c1c', color: '#fff', padding: '4px 10px', borderRadius: 6 }}>Data stale — retrying…</div>}
-        <Toasts />
-      </div>
+
+        <div className="sidebar__body">
+          {tab === 'flights' && (<>
+            <SearchBox /><FilterBar /><FlightList /><DetailPanel />
+          </>)}
+          {tab === 'chat' && <ChatPanel flyTo={(lat, lon, zoom) => mapApiRef.current.flyTo(lat, lon, zoom)} />}
+          {tab === 'alerts' && <AlertsManager />}
+          {tab === 'stats' && <StatsDashboard />}
+          {tab === 'settings' && <Settings />}
+        </div>
+      </aside>
+
+      <Toasts />
     </div>
   );
 }

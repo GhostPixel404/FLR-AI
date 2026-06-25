@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { formatAltitude, formatSpeed } from '../util/units';
 import { getRoute, getAircraftInfo, type RouteInfo, type AircraftInfo } from '../enrich/adsbdb';
+import { ArrowRightIcon } from './icons';
 
 export default function DetailPanel() {
   const selectedHex = useStore((s) => s.selectedHex);
@@ -20,25 +21,34 @@ export default function DetailPanel() {
     getAircraftInfo(a.registration ?? a.hex).then(setInfo);
   }, [selectedHex]);
 
-  if (!a) return <div style={{ padding: 12, color: '#6b7280' }}>Select an aircraft.</div>;
+  if (!a) return <div className="detail__empty">Select an aircraft to see details.</div>;
   return (
-    <div style={{ padding: 12, borderTop: '1px solid #e5e7eb' }}>
-      <h3 style={{ margin: '0 0 6px' }}>{a.callsign ?? a.hex}</h3>
-      {info?.photoThumb && <img src={info.photoThumb} alt="" style={{ width: '100%', borderRadius: 6 }} />}
-      <table style={{ fontSize: 13, width: '100%' }}><tbody>
-        <tr><td>Reg</td><td>{a.registration ?? '—'}</td></tr>
-        <tr><td>Type</td><td>{info?.type ?? a.type ?? '—'}</td></tr>
-        <tr><td>Owner</td><td>{info?.owner ?? '—'}</td></tr>
-        <tr><td>Altitude</td><td>{formatAltitude(a.altitude, units)}</td></tr>
-        <tr><td>Speed</td><td>{formatSpeed(a.groundSpeed, units)}</td></tr>
-        <tr><td>Heading</td><td>{a.track != null ? `${Math.round(a.track)}°` : '—'}</td></tr>
-        <tr><td>Vert. rate</td><td>{a.verticalRate != null ? `${a.verticalRate > 0 ? '+' : ''}${a.verticalRate} ft/min` : '—'}</td></tr>
-        <tr><td>Squawk</td><td>{a.squawk ?? '—'}</td></tr>
-        {route && <tr><td>Route</td><td>{route.originIata ?? '?'} → {route.destinationIata ?? '?'}</td></tr>}
-        {route?.airline && <tr><td>Airline</td><td>{route.airline}</td></tr>}
-      </tbody></table>
-      <button onClick={() => follow(followedHex === a.hex ? null : a.hex)}>
-        {followedHex === a.hex ? 'Unfollow' : 'Follow'}</button>
+    <div className="detail">
+      {info?.photoThumb && <img className="detail__photo" src={info.photoThumb} alt={`${a.type ?? 'Aircraft'} photo`} />}
+      <div className="detail__head">
+        <span className="detail__call">{a.callsign ?? a.hex}</span>
+        <span className="detail__type">{info?.type ?? a.type ?? ''}</span>
+      </div>
+      {route && (route.originIata || route.destinationIata) && (
+        <div className="detail__route">
+          <span>{route.originIata ?? '?'}<small>{route.originName ?? ''}</small></span>
+          <ArrowRightIcon />
+          <span>{route.destinationIata ?? '?'}<small>{route.destinationName ?? ''}</small></span>
+        </div>
+      )}
+      <dl className="detail__grid">
+        <dt>Reg</dt><dd>{a.registration ?? '—'}</dd>
+        <dt>Owner</dt><dd>{info?.owner ?? '—'}</dd>
+        <dt>Altitude</dt><dd>{formatAltitude(a.altitude, units)}</dd>
+        <dt>Speed</dt><dd>{formatSpeed(a.groundSpeed, units)}</dd>
+        <dt>Heading</dt><dd>{a.track != null ? `${Math.round(a.track)}°` : '—'}</dd>
+        <dt>Vert. rate</dt><dd>{a.verticalRate != null ? `${a.verticalRate > 0 ? '+' : ''}${a.verticalRate} ft/min` : '—'}</dd>
+        <dt>Squawk</dt><dd>{a.squawk ?? '—'}</dd>
+        {route?.airline && <><dt>Airline</dt><dd>{route.airline}</dd></>}
+      </dl>
+      <button className="btn btn--accent btn--block" onClick={() => follow(followedHex === a.hex ? null : a.hex)}>
+        {followedHex === a.hex ? 'Unfollow' : 'Follow'}
+      </button>
     </div>
   );
 }

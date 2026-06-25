@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { listRules, saveRule, deleteRule } from '../alerts/alertStore';
 import type { AlertRule } from '../types';
 import { newId } from '../util/id';
+import { PlusIcon, CloseIcon } from './icons';
 
 export default function AlertsManager() {
   const [rules, setRules] = useState<AlertRule[]>([]);
@@ -21,18 +22,26 @@ export default function AlertsManager() {
     setName(''); setType(''); setEmergency(false); refresh();
   };
   return (
-    <div style={{ padding: 12 }}>
-      <div style={{ display: 'grid', gap: 6, marginBottom: 12 }}>
-        <input placeholder="Alert name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input placeholder="Type (e.g. B744)" value={type} onChange={(e) => setType(e.target.value)} />
-        <label><input type="checkbox" checked={emergency}
-          onChange={(e) => setEmergency(e.target.checked)} /> Emergency squawks</label>
-        <button onClick={add}>Add alert</button>
+    <div className="pane scroll-area">
+      <div className="card stack">
+        <input className="field" placeholder="Alert name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="field" placeholder="Type (e.g. B744)" value={type} onChange={(e) => setType(e.target.value)} />
+        <div className="inline-toggle">
+          <span>Emergency squawks</span>
+          <label className="switch">
+            <input type="checkbox" checked={emergency} onChange={(e) => setEmergency(e.target.checked)} />
+            <span className="switch__track" />
+          </label>
+        </div>
+        <button className="btn btn--accent btn--block" onClick={add}><PlusIcon size={16} /> Add alert</button>
       </div>
       {rules.map((r) => (
-        <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-          <span>{r.name} <small style={{ color: '#6b7280' }}>{JSON.stringify(r.criteria)}</small></span>
-          <button onClick={() => deleteRule(r.id).then(refresh)}>✕</button>
+        <div key={r.id} className="list-row">
+          <div>
+            <div className="row__title">{r.name}</div>
+            <div className="muted">{JSON.stringify(r.criteria)}</div>
+          </div>
+          <button className="btn btn--ghost btn--danger" aria-label="Delete" onClick={() => deleteRule(r.id).then(refresh)}><CloseIcon /></button>
         </div>
       ))}
     </div>

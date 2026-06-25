@@ -1,6 +1,7 @@
 import { useStore } from '../store/useStore';
 import { matchesFilters } from '../store/filters';
 import { formatAltitude } from '../util/units';
+import { PlaneIcon } from './icons';
 
 export default function FlightList() {
   const aircraft = useStore((s) => s.aircraft);
@@ -13,17 +14,19 @@ export default function FlightList() {
     .sort((a, b) => (a.distanceNm ?? 1e9) - (b.distanceNm ?? 1e9))
     .slice(0, 200);
   return (
-    <div style={{ overflowY: 'auto', flex: 1 }}>
-      <div style={{ padding: '4px 8px', fontSize: 12, color: '#6b7280' }}>{list.length} shown</div>
+    <div className="list scroll-area">
+      <div className="list__count">{list.length} aircraft</div>
       {list.map((a) => (
-        <div key={a.hex} onClick={() => select(a.hex)}
-          style={{ padding: '6px 8px', cursor: 'pointer', borderLeft: '3px solid',
-            borderLeftColor: a.hex === selectedHex ? '#f59e0b' : 'transparent',
-            background: a.hex === selectedHex ? '#f3f4f6' : 'transparent' }}>
-          <strong>{a.callsign ?? a.hex}</strong>
-          <span style={{ float: 'right', color: '#6b7280' }}>{a.type ?? ''}</span>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>
-            {formatAltitude(a.altitude, units)} · {a.registration ?? ''}</div>
+        <div key={a.hex} className={`row ${a.hex === selectedHex ? 'row--selected' : ''}`} onClick={() => select(a.hex)}>
+          <span className="row__icon"><PlaneIcon size={16} /></span>
+          <div className="row__main">
+            <div className="row__title">{a.callsign ?? a.hex}</div>
+            <div className="row__sub">{a.registration ?? '—'}</div>
+          </div>
+          <div className="row__meta">
+            <div className="row__type">{a.type ?? ''}</div>
+            <div className="row__alt tabular">{formatAltitude(a.altitude, units)}</div>
+          </div>
         </div>
       ))}
     </div>

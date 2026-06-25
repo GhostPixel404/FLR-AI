@@ -14,10 +14,9 @@ export default function Toasts() {
     return () => window.removeEventListener('flr-toast', handler);
   }, []);
   return (
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 30, display: 'grid', gap: 8 }}>
+    <div className="toasts">
       {items.map((i) => (
-        <div key={i.id} style={{ background: '#111827', color: '#fff', padding: '8px 12px',
-          borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,.3)', maxWidth: 280 }}>{i.text}</div>
+        <div key={i.id} className="toast glass glass-thick">{i.text}</div>
       ))}
     </div>
   );

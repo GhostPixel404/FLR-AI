@@ -8,7 +8,11 @@ import { loadPlaneImage } from './icons';
 import { deadReckon } from '../poll/interpolate';
 import { getTrailLine } from '../poll/trails';
 
-const STYLE = 'https://tiles.openfreemap.org/styles/positron';
+// Clean, Apple-Maps-like basemaps (free, keyless, CORS-open). Picked once at
+// load from the system color scheme so the map matches the Liquid Glass chrome.
+const STYLE = window.matchMedia('(prefers-color-scheme: dark)').matches
+  ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+  : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const SRC = 'aircraft';
 
 export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: number, lon: number, zoom: number) => void }) => void }) {

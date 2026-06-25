@@ -7,6 +7,7 @@ import { saveRule, listRules, deleteRule } from '../alerts/alertStore';
 import { getSummary } from '../stats/statsStore';
 import type { AlertCriteria } from '../types';
 import { newId } from '../util/id';
+import { ArrowUpIcon } from './icons';
 
 export default function ChatPanel({ flyTo }: { flyTo: (lat: number, lon: number, zoom: number) => void }) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -69,23 +70,24 @@ export default function ChatPanel({ flyTo }: { flyTo: (lat: number, lon: number,
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-        {turns.map((t, i) => (
-          <div key={i} style={{ margin: '6px 0', textAlign: t.role === 'user' ? 'right' : 'left' }}>
-            <span style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 8,
-              background: t.role === 'user' ? '#1d4ed8' : '#e5e7eb',
-              color: t.role === 'user' ? '#fff' : '#111' }}>{t.text}</span>
+    <div className="chat">
+      <div className="chat__scroll scroll-area">
+        {turns.length === 0 && (
+          <div className="chat__empty">
+            <strong>Ask the assistant</strong>
+            Try "show me military aircraft" or "what's the rarest plane I've seen?"
           </div>
+        )}
+        {turns.map((t, i) => (
+          <div key={i} className={`bubble ${t.role === 'user' ? 'bubble--user' : 'bubble--ai'}`}>{t.text}</div>
         ))}
-        {busy && <div style={{ color: '#6b7280' }}>…thinking</div>}
+        {busy && <div className="bubble bubble--ai bubble--typing">Thinking…</div>}
         <div ref={endRef} />
       </div>
-      <div style={{ display: 'flex', gap: 6, padding: 8, borderTop: '1px solid #e5e7eb' }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Ask about the skies…"
-          style={{ flex: 1, padding: 8 }} />
-        <button onClick={send} disabled={busy}>Send</button>
+      <div className="chat__bar">
+        <input className="field" value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Ask about the skies…" />
+        <button className="btn btn--accent chat__send" onClick={send} disabled={busy} aria-label="Send"><ArrowUpIcon /></button>
       </div>
     </div>
   );
