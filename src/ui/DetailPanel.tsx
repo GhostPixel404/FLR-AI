@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { formatAltitude, formatSpeed } from '../util/units';
+import { isEmergency } from '../store/filters';
 import { getRoute, getAircraftInfo, type RouteInfo, type AircraftInfo } from '../enrich/adsbdb';
-import { ArrowRightIcon } from './icons';
+import { ArrowRightIcon, CloseIcon, LocateIcon } from './icons';
 
 export default function DetailPanel() {
   const selectedHex = useStore((s) => s.selectedHex);
   const aircraft = useStore((s) => s.aircraft);
   const units = useStore((s) => s.settings.units);
+  const select = useStore((s) => s.select);
   const follow = useStore((s) => s.follow);
   const followedHex = useStore((s) => s.followedHex);
   const a = selectedHex ? aircraft.get(selectedHex) : null;
@@ -21,34 +23,69 @@ export default function DetailPanel() {
     getAircraftInfo(a.registration ?? a.hex).then(setInfo);
   }, [selectedHex]);
 
-  if (!a) return <div className="detail__empty">Select an aircraft to see details.</div>;
+  if (!a) return null;
+
+  const following = followedHex === a.hex;
+  const vrate = a.verticalRate;
+  const close = () => { select(null); if (following) follow(null); };
+
   return (
-    <div className="detail">
-      {info?.photoThumb && <img className="detail__photo" src={info.photoThumb} alt={`${a.type ?? 'Aircraft'} photo`} />}
-      <div className="detail__head">
-        <span className="detail__call">{a.callsign ?? a.hex}</span>
-        <span className="detail__type">{info?.type ?? a.type ?? ''}</span>
-      </div>
-      {route && (route.originIata || route.destinationIata) && (
-        <div className="detail__route">
-          <span>{route.originIata ?? '?'}<small>{route.originName ?? ''}</small></span>
-          <ArrowRightIcon />
-          <span>{route.destinationIata ?? '?'}<small>{route.destinationName ?? ''}</small></span>
-        </div>
-      )}
-      <dl className="detail__grid">
-        <dt>Reg</dt><dd>{a.registration ?? '—'}</dd>
-        <dt>Owner</dt><dd>{info?.owner ?? '—'}</dd>
-        <dt>Altitude</dt><dd>{formatAltitude(a.altitude, units)}</dd>
-        <dt>Speed</dt><dd>{formatSpeed(a.groundSpeed, units)}</dd>
-        <dt>Heading</dt><dd>{a.track != null ? `${Math.round(a.track)}°` : '—'}</dd>
-        <dt>Vert. rate</dt><dd>{a.verticalRate != null ? `${a.verticalRate > 0 ? '+' : ''}${a.verticalRate} ft/min` : '—'}</dd>
-        <dt>Squawk</dt><dd>{a.squawk ?? '—'}</dd>
-        {route?.airline && <><dt>Airline</dt><dd>{route.airline}</dd></>}
-      </dl>
-      <button className="btn btn--accent btn--block" onClick={() => follow(followedHex === a.hex ? null : a.hex)}>
-        {followedHex === a.hex ? 'Unfollow' : 'Follow'}
+    <section className="detail-card glass" role="dialog" aria-label="Selected aircraft">
+      <button className="detail__close" onClick={close} aria-label="Close">
+        <CloseIcon size={15} />
       </button>
-    </div>
+
+      {info?.photoThumb && (
+        <img className="detail__photo" src={info.photoThumb} alt={`${a.type ?? 'Aircraft'} photo`} loading="lazy" />
+      )}
+
+      <div className="detail__body">
+        <div className="detail__head">
+          <div>
+            <div className="detail__call">{a.callsign ?? a.hex}</div>
+            <div className="detail__sub">{a.registration ?? a.hex}{(info?.type || a.type) ? ` · ${info?.type ?? a.type}` : ''}</div>
+          </div>
+        </div>
+
+        {(isEmergency(a) || a.military || a.onGround) && (
+          <div className="detail__chips">
+            {isEmergency(a) && <span className="tag tag--danger">Emergency</span>}
+            {a.military && <span className="tag tag--mil">Military</span>}
+            {a.onGround && <span className="tag">On ground</span>}
+          </div>
+        )}
+
+        <div className="stat-trio">
+          <div className="stat"><span className="stat__v tabular">{formatAltitude(a.altitude, units)}</span><span className="stat__k">Altitude</span></div>
+          <div className="stat"><span className="stat__v tabular">{formatSpeed(a.groundSpeed, units)}</span><span className="stat__k">Speed</span></div>
+          <div className="stat">
+            <span className={`stat__v tabular ${vrate ? (vrate > 0 ? 'is-climb' : 'is-descend') : ''}`}>
+              {vrate ? `${vrate > 0 ? '↑' : '↓'} ${Math.abs(vrate)}` : '—'}
+            </span>
+            <span className="stat__k">ft/min</span>
+          </div>
+        </div>
+
+        {route && (route.originIata || route.destinationIata) && (
+          <div className="detail__route">
+            <span>{route.originIata ?? '?'}<small>{route.originName ?? ''}</small></span>
+            <ArrowRightIcon />
+            <span>{route.destinationIata ?? '?'}<small>{route.destinationName ?? ''}</small></span>
+          </div>
+        )}
+
+        <dl className="detail__grid">
+          <dt>Heading</dt><dd className="tabular">{a.track != null ? `${Math.round(a.track)}°` : '—'}</dd>
+          <dt>Squawk</dt><dd className="tabular">{a.squawk ?? '—'}</dd>
+          {info?.owner && <><dt>Owner</dt><dd>{info.owner}</dd></>}
+          {route?.airline && <><dt>Airline</dt><dd>{route.airline}</dd></>}
+          {info?.manufacturer && <><dt>Built by</dt><dd>{info.manufacturer}</dd></>}
+        </dl>
+
+        <button className={`btn btn--block ${following ? 'btn--accent' : ''}`} onClick={() => follow(following ? null : a.hex)}>
+          <LocateIcon size={16} /> {following ? 'Following' : 'Follow'}
+        </button>
+      </div>
+    </section>
   );
 }

@@ -33,6 +33,14 @@ export default function App() {
   const stale = useStore((s) => s.stale);
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') useStore.getState().select(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
     const provider = new AirplanesLiveProvider();
     const handle = startPolling(
       provider,
@@ -89,14 +97,22 @@ export default function App() {
 
         <div className="sidebar__body">
           {tab === 'flights' && (<>
-            <SearchBox /><FilterBar /><FlightList /><DetailPanel />
+            <SearchBox /><FilterBar /><FlightList />
           </>)}
-          {tab === 'chat' && <ChatPanel flyTo={(lat, lon, zoom) => mapApiRef.current.flyTo(lat, lon, zoom)} />}
+          {tab === 'chat' && (
+            <ChatPanel
+              flyTo={(lat, lon, zoom) => mapApiRef.current.flyTo(lat, lon, zoom)}
+              onOpenSettings={() => setTab('settings')}
+            />
+          )}
           {tab === 'alerts' && <AlertsManager />}
           {tab === 'stats' && <StatsDashboard />}
           {tab === 'settings' && <Settings />}
         </div>
       </aside>
+
+      {/* Floating selected-aircraft card — visible on every tab */}
+      <DetailPanel />
 
       <Toasts />
     </div>

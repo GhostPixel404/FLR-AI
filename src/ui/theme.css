@@ -407,6 +407,97 @@ button, input, select, textarea {
 .toast { padding: 11px 14px; border-radius: var(--r-md); font-size: 13px; font-weight: 500; color: var(--text-1); animation: toast-in 280ms var(--ease-spring); }
 @keyframes toast-in { from { opacity: 0; transform: translateX(16px) scale(0.96); } to { opacity: 1; transform: none; } }
 
+/* ---- Live count indicator ----------------------------------------------- */
+.list__count { display: flex; align-items: center; gap: 7px; }
+.list__count::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--success); flex: none; animation: pulse-ok 2.2s infinite;
+}
+@keyframes pulse-ok {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Row micro-interaction */
+.row { will-change: background; }
+.row:active { transform: scale(0.99); }
+.row__icon { transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
+
+/* ============================================================================
+   Floating selected-aircraft card (visible on every tab)
+   ========================================================================== */
+.detail-card {
+  position: absolute;
+  right: var(--sp-3); bottom: var(--sp-3);
+  width: 372px; max-width: calc(100vw - 24px);
+  max-height: min(564px, calc(100vh - 24px));
+  z-index: var(--z-chrome);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: card-in 340ms var(--ease-spring);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.detail-card .detail__photo {
+  margin: 0; border-radius: 0; box-shadow: none; aspect-ratio: 16 / 9; flex: none;
+}
+.detail__body { padding: var(--sp-3) var(--sp-4) var(--sp-4); overflow-y: auto; min-height: 0; }
+.detail__close {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+  display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.42); color: #fff;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: background var(--dur), transform 120ms var(--ease-out);
+}
+.detail__close:hover { background: rgba(0, 0, 0, 0.62); }
+.detail__close:active { transform: scale(0.9); }
+.detail__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.detail__sub { font-size: 13px; color: var(--text-2); font-weight: 500; margin-top: 3px; }
+.detail__chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--sp-3); }
+.tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: var(--r-pill); background: var(--fill-1); color: var(--text-2); letter-spacing: 0.02em; }
+.tag--danger { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+.tag--mil { background: color-mix(in srgb, var(--military) 18%, transparent); color: var(--military); }
+
+.stat-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.stat { background: var(--fill-thin); border: 0.5px solid var(--hairline); border-radius: var(--r-sm); padding: 10px 6px; text-align: center; }
+.stat__v { display: block; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.stat__k { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); margin-top: 3px; }
+.is-climb { color: var(--success); }
+.is-descend { color: var(--warning); }
+
+/* ============================================================================
+   Chat header + connection status + tool-usage chips
+   ========================================================================== */
+.chat__header { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+.chat__header-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.status-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; font-size: 12px; font-weight: 600;
+  padding: 5px 10px; border-radius: var(--r-pill);
+  background: var(--fill-1); color: var(--text-2); cursor: default;
+  transition: background var(--dur);
+}
+.status-chip--ok { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+.status-chip--warn { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); cursor: pointer; }
+.status-chip--warn:hover { background: color-mix(in srgb, var(--warning) 30%, transparent); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+.status-dot--ok { background: var(--success); animation: pulse-ok 2.2s infinite; }
+.status-dot--warn { background: var(--warning); }
+
+.msg { display: flex; flex-direction: column; gap: 4px; }
+.msg--user { align-items: flex-end; }
+.msg--ai { align-items: flex-start; }
+.tool-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 2px; }
+.tool-chip {
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  background: var(--fill-thin); border: 0.5px solid var(--hairline);
+  border-radius: var(--r-pill); padding: 2px 8px;
+}
+
 /* ---- Reduced motion ----------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
