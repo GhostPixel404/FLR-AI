@@ -2,6 +2,8 @@
 // Runs server-side, so it isn't blocked by OpenSky's restrictive CORS. The
 // browser fetches /api/global (same origin) and feeds the numbers to the AI.
 
+export const config = { maxDuration: 30 };
+
 let cache = null; // { data, ts } — survives on a warm instance
 
 export default async function handler(_req, res) {
@@ -14,7 +16,7 @@ export default async function handler(_req, res) {
 
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 9000);
+    const timer = setTimeout(() => ctrl.abort(), 25000);
     let r;
     try {
       r = await fetch('https://opensky-network.org/api/states/all', {
