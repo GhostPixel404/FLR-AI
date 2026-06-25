@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore, visibleAircraft } from '../store/useStore';
-import { Assistant, type ChatTurn } from '../ai/assistant';
+import type { ChatTurn } from '../ai/assistant';
+import { createAssistant, isAiConfigured, aiModelLabel } from '../ai/createAssistant';
 import type { ToolActions } from '../ai/tools';
 import { getRoute, getAircraftInfo } from '../enrich/adsbdb';
 import { saveRule, listRules, deleteRule } from '../alerts/alertStore';
@@ -60,17 +61,18 @@ export default function ChatPanel({
     queryStats: () => getSummary(),
   }), [flyTo]);
 
-  const hasKey = !!settings.geminiApiKey;
+  const configured = isAiConfigured(settings);
+  const model = aiModelLabel(settings);
 
   const send = async () => {
     const msg = input.trim();
     if (!msg || busy) return;
-    if (!hasKey) { onOpenSettings(); return; }
+    if (!configured) { onOpenSettings(); return; }
     setInput('');
     setTurns((t) => [...t, { role: 'user', text: msg }]);
     setBusy(true);
     try {
-      const assistant = new Assistant(settings.geminiApiKey, settings.geminiModel, actions);
+      const assistant = createAssistant(settings, actions);
       const reply = await assistant.send(turns, msg);
       setConnected(true);
       setTurns((t) => [...t, { role: 'model', text: reply.text, tools: reply.toolsUsed }]);
@@ -82,11 +84,11 @@ export default function ChatPanel({
     }
   };
 
-  const status = !hasKey
-    ? { cls: 'status-chip status-chip--warn', dot: 'warn', text: 'Add API key', onClick: onOpenSettings }
+  const status = !configured
+    ? { cls: 'status-chip status-chip--warn', dot: 'warn', text: 'Set up AI', onClick: onOpenSettings }
     : connected
-      ? { cls: 'status-chip status-chip--ok', dot: 'ok', text: `Connected · ${settings.geminiModel}`, onClick: undefined }
-      : { cls: 'status-chip', dot: 'idle', text: settings.geminiModel, onClick: undefined };
+      ? { cls: 'status-chip status-chip--ok', dot: 'ok', text: `Connected · ${model}`, onClick: undefined }
+      : { cls: 'status-chip', dot: 'idle', text: model, onClick: undefined };
 
   return (
     <div className="chat">
@@ -125,7 +127,7 @@ export default function ChatPanel({
       <div className="chat__bar">
         <input className="field" value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder={hasKey ? 'Ask about the skies…' : 'Add a Gemini key in Settings to chat'} />
+          placeholder={configured ? 'Ask about the skies…' : 'Set up an AI provider in Settings to chat'} />
         <button className="btn btn--accent chat__send" onClick={send} disabled={busy} aria-label="Send"><ArrowUpIcon /></button>
       </div>
     </div>

@@ -20,17 +20,55 @@ export default function Settings() {
   const home = settings.home;
   return (
     <div className="pane scroll-area">
-      <div className="section-label">Assistant</div>
-      <div className="form-row">
-        <label>Gemini API key</label>
-        <input className="field" type="password" placeholder="Paste your Google AI key"
-          value={settings.geminiApiKey} onChange={(e) => update({ geminiApiKey: e.target.value })} />
+      <div className="section-label">AI provider</div>
+      <div className="seg-toggle" role="radiogroup" aria-label="AI provider">
+        <button role="radio" aria-checked={settings.aiProvider === 'gemini'}
+          className={`seg-toggle__item ${settings.aiProvider === 'gemini' ? 'is-active' : ''}`}
+          onClick={() => update({ aiProvider: 'gemini' })}>Gemini</button>
+        <button role="radio" aria-checked={settings.aiProvider === 'openai'}
+          className={`seg-toggle__item ${settings.aiProvider === 'openai' ? 'is-active' : ''}`}
+          onClick={() => update({ aiProvider: 'openai' })}>OpenAI-compatible</button>
       </div>
-      <div className="form-row">
-        <label>Model</label>
-        <input className="field" value={settings.geminiModel}
-          onChange={(e) => update({ geminiModel: e.target.value })} />
-      </div>
+
+      {settings.aiProvider === 'gemini' ? (
+        <>
+          <div className="form-row">
+            <label>Gemini API key</label>
+            <input className="field" type="password" placeholder="Paste your Google AI key"
+              value={settings.geminiApiKey} onChange={(e) => update({ geminiApiKey: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <label>Model</label>
+            <input className="field" value={settings.geminiModel}
+              onChange={(e) => update({ geminiModel: e.target.value })} />
+          </div>
+          <div className="muted">Free tier at aistudio.google.com. If you hit a limit, try
+            <code> gemini-2.0-flash</code> or <code> gemini-2.5-flash-lite</code>.</div>
+        </>
+      ) : (
+        <>
+          <div className="chips" style={{ padding: '0 0 12px' }}>
+            <button className="chip" onClick={() => update({ openaiBaseUrl: 'https://openrouter.ai/api/v1' })}>OpenRouter (free cloud)</button>
+            <button className="chip" onClick={() => update({ openaiBaseUrl: 'http://localhost:11434/v1', openaiModel: settings.openaiModel || 'llama3.1' })}>Ollama (local)</button>
+          </div>
+          <div className="form-row">
+            <label>Base URL</label>
+            <input className="field" value={settings.openaiBaseUrl}
+              onChange={(e) => update({ openaiBaseUrl: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <label>API key</label>
+            <input className="field" type="password" placeholder="(leave blank for local Ollama)"
+              value={settings.openaiApiKey} onChange={(e) => update({ openaiApiKey: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <label>Model</label>
+            <input className="field" placeholder="e.g. meta-llama/llama-3.3-70b-instruct:free or llama3.1"
+              value={settings.openaiModel} onChange={(e) => update({ openaiModel: e.target.value })} />
+          </div>
+          <div className="muted">OpenRouter: grab a free key + pick a <code>:free</code> tool-capable model at openrouter.ai. Ollama: <code>ollama serve</code> with <code>OLLAMA_ORIGINS={'*'}</code> and a tool-capable model (llama3.1, qwen2.5).</div>
+        </>
+      )}
 
       <div className="section-label">Appearance</div>
       <div className="seg-toggle" role="radiogroup" aria-label="Theme">

@@ -5,7 +5,10 @@ import type { Bounds } from '../util/geo';
 const SETTINGS_KEY = 'flr.settings';
 
 const defaultSettings: Settings = {
-  geminiApiKey: '', geminiModel: 'gemini-2.5-flash', units: 'imperial',
+  aiProvider: 'gemini',
+  geminiApiKey: '', geminiModel: 'gemini-2.5-flash',
+  openaiBaseUrl: 'https://openrouter.ai/api/v1', openaiApiKey: '', openaiModel: '',
+  units: 'imperial',
   refreshSeconds: 6, home: null, basemap: 'auto', theme: 'system',
 };
 

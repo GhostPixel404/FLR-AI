@@ -61,10 +61,16 @@ export interface Sighting {
 
 export type BasemapId = 'auto' | 'light' | 'dark' | 'satellite';
 export type ThemePref = 'system' | 'light' | 'dark';
+export type AiProvider = 'gemini' | 'openai';
 
 export interface Settings {
+  aiProvider: AiProvider;
   geminiApiKey: string;
   geminiModel: string;
+  // OpenAI-compatible provider (OpenRouter, local Ollama, etc.)
+  openaiBaseUrl: string;
+  openaiApiKey: string;
+  openaiModel: string;
   units: UnitSystem;
   refreshSeconds: number;
   home: { lat: number; lon: number } | null;
