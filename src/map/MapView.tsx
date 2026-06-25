@@ -8,8 +8,15 @@ import { loadPlaneImage } from './icons';
 import { deadReckon } from '../poll/interpolate';
 import { getTrailLine } from '../poll/trails';
 import { styleFor } from './basemaps';
+import { effectiveTheme } from '../util/theme';
+import type { BasemapId, ThemePref } from '../types';
 
 const SRC = 'aircraft';
+
+/** A key that changes whenever the resolved basemap style should change. */
+function styleKey(basemap: BasemapId, theme: ThemePref): string {
+  return basemap === 'auto' ? `auto:${effectiveTheme(theme)}` : basemap;
+}
 
 /** Run `cb` once the (current) style is fully loaded. */
 function whenStyleReady(map: maplibregl.Map, cb: () => void) {
@@ -63,15 +70,16 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
   const lastFollowRef = useRef<number>(0);
   const locMarkerRef = useRef<maplibregl.Marker | null>(null);
   const basemap = useStore((s) => s.settings.basemap);
+  const theme = useStore((s) => s.settings.theme);
   const myLocation = useStore((s) => s.myLocation);
-  const basemapRef = useRef(basemap);
+  const styleKeyRef = useRef<string>('');
 
   // Init the map once.
   useEffect(() => {
     if (!containerRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: styleFor(basemapRef.current),
+      style: styleFor(basemap),
       center: [-0.45, 51.47], zoom: 9,
       attributionControl: false,
     });
@@ -100,14 +108,17 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     return () => map.remove();
   }, []);
 
-  // Switch basemap when the setting changes (re-adding the overlay afterwards).
+  // Switch basemap when the setting (or the resolved theme, for "auto") changes.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || basemap === basemapRef.current) return;
-    basemapRef.current = basemap;
+    if (!map) return;
+    const key = styleKey(basemap, theme);
+    if (styleKeyRef.current === '') { styleKeyRef.current = key; return; } // initial style already set
+    if (key === styleKeyRef.current) return;
+    styleKeyRef.current = key;
     map.setStyle(styleFor(basemap));
     whenStyleReady(map, () => { void addOverlay(map); });
-  }, [basemap]);
+  }, [basemap, theme]);
 
   // Draw / move the "my location" marker and recentre when it updates.
   useEffect(() => {

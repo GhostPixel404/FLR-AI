@@ -8,6 +8,12 @@ const UNIT_OPTIONS = [
   { id: 'metric', label: 'Metric', hint: 'm · km/h' },
 ] as const;
 
+const THEME_OPTIONS = [
+  { id: 'system', label: 'System' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+] as const;
+
 export default function Settings() {
   const settings = useStore((s) => s.settings);
   const update = useStore((s) => s.updateSettings);
@@ -24,6 +30,19 @@ export default function Settings() {
         <label>Model</label>
         <input className="field" value={settings.geminiModel}
           onChange={(e) => update({ geminiModel: e.target.value })} />
+      </div>
+
+      <div className="section-label">Appearance</div>
+      <div className="seg-toggle" role="radiogroup" aria-label="Theme">
+        {THEME_OPTIONS.map((t) => (
+          <button
+            key={t.id} role="radio" aria-checked={settings.theme === t.id}
+            className={`seg-toggle__item ${settings.theme === t.id ? 'is-active' : ''}`}
+            onClick={() => update({ theme: t.id })}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <div className="section-label">Units</div>

@@ -60,6 +60,7 @@ export interface Sighting {
 }
 
 export type BasemapId = 'auto' | 'light' | 'dark' | 'satellite';
+export type ThemePref = 'system' | 'light' | 'dark';
 
 export interface Settings {
   geminiApiKey: string;
@@ -68,6 +69,7 @@ export interface Settings {
   refreshSeconds: number;
   home: { lat: number; lon: number } | null;
   basemap: BasemapId;
+  theme: ThemePref;
 }
 
 export const EMERGENCY_SQUAWKS = ['7500', '7600', '7700'] as const;

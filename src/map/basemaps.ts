@@ -39,6 +39,11 @@ const SATELLITE: StyleSpecification = {
 };
 
 export function prefersDark(): boolean {
+  // Follows the resolved UI theme (set on <html data-theme>) so the "auto"
+  // basemap matches the chrome; falls back to the OS preference.
+  const t = document.documentElement.dataset.theme;
+  if (t === 'dark') return true;
+  if (t === 'light') return false;
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 

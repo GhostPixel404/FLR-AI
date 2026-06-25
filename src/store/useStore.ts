@@ -6,7 +6,7 @@ const SETTINGS_KEY = 'flr.settings';
 
 const defaultSettings: Settings = {
   geminiApiKey: '', geminiModel: 'gemini-2.5-flash', units: 'imperial',
-  refreshSeconds: 6, home: null, basemap: 'auto',
+  refreshSeconds: 6, home: null, basemap: 'auto', theme: 'system',
 };
 
 function loadSettings(): Settings {

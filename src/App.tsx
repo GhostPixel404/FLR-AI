@@ -16,7 +16,8 @@ import { startPolling } from './poll/pollLoop';
 import { recordSightings } from './stats/statsStore';
 import { evaluateAlerts } from './alerts/alertStore';
 import { recordPositions } from './poll/trails';
-import { PlaneIcon, ChatIcon, BellIcon, ChartIcon, GearIcon } from './ui/icons';
+import { PlaneIcon, ChatIcon, BellIcon, ChartIcon, GearIcon, SunIcon, MoonIcon } from './ui/icons';
+import { applyTheme, effectiveTheme } from './util/theme';
 
 type Tab = 'flights' | 'chat' | 'alerts' | 'stats' | 'settings';
 
@@ -32,6 +33,9 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('flights');
   const mapApiRef = useRef<{ flyTo: (lat: number, lon: number, zoom: number) => void }>({ flyTo: () => {} });
   const stale = useStore((s) => s.stale);
+  const theme = useStore((s) => s.settings.theme);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const resolvedTheme = effectiveTheme(theme);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,6 +44,16 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Apply the theme; while on "system", track OS changes live.
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => applyTheme('system');
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [theme]);
 
   useEffect(() => {
     const provider = new AirplanesLiveProvider();
@@ -80,6 +94,13 @@ export default function App() {
             <div className="sidebar__title">FLR AI</div>
             <div className="sidebar__subtitle">Live flight radar</div>
           </div>
+          <button
+            className="theme-toggle"
+            aria-label={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => updateSettings({ theme: resolvedTheme === 'dark' ? 'light' : 'dark' })}
+          >
+            {resolvedTheme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
+          </button>
         </div>
 
         <div className="segmented" role="tablist" aria-label="Sections">

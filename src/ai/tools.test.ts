@@ -55,6 +55,24 @@ describe('dispatchTool', () => {
     const out = await dispatchTool('createAlert', { name: 'jumbos', type: 'B744' }, a);
     expect(out.id).toBe('id-1');
   });
+  it('flyTo geocodes the place name and moves the map', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ lat: '35.68', lon: '139.76', display_name: 'Tokyo, Japan', addresstype: 'city', type: 'city', class: 'place' }],
+    } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    const a = actions();
+    const out = await dispatchTool('flyTo', { query: 'Tokyo' }, a);
+    expect(a.setMapView).toHaveBeenCalledWith(35.68, 139.76, 10);
+    expect(out.movedTo).toMatch(/Tokyo/);
+    vi.unstubAllGlobals();
+  });
+  it('flyTo returns an error when the place is not found', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] } as Response));
+    const out = await dispatchTool('flyTo', { query: 'asdfqwer' }, actions());
+    expect(out.error).toMatch(/couldn't find/i);
+    vi.unstubAllGlobals();
+  });
   it('returns an error object for an unknown tool', async () => {
     const out = await dispatchTool('nope', {}, actions());
     expect(out.error).toMatch(/unknown tool/i);

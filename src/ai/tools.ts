@@ -2,6 +2,7 @@ import type { Aircraft, AlertCriteria } from '../types';
 import { EMERGENCY_SQUAWKS } from '../types';
 import type { RouteInfo, AircraftInfo } from '../enrich/adsbdb';
 import type { StatsSummary } from '../stats/aggregate';
+import { geocode } from '../enrich/geocode';
 
 export interface AircraftDetails { live: Aircraft | null; route: RouteInfo | null; info: AircraftInfo | null }
 
@@ -32,6 +33,8 @@ export const toolDeclarations = [
       type: { type: 'string' }, airline: { type: 'string' },
       military: { type: 'boolean' }, emergency: { type: 'boolean' },
       onGround: { type: 'boolean' } } } },
+  { name: 'flyTo', description: 'Move the map to a named place — an airport, city, country, or landmark (e.g. "Heathrow Airport", "Tokyo", "Switzerland"). Resolves the name to coordinates.',
+    parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'clearFilters', description: 'Remove all filters.', parameters: { type: 'object', properties: {} } },
   { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type, airline callsign prefix, military, emergency, belowAltitude).',
     parameters: { type: 'object', properties: {
@@ -72,6 +75,12 @@ export async function dispatchTool(
     case 'setMapView':
       actions.setMapView(args.lat, args.lon, args.zoom);
       return { ok: true };
+    case 'flyTo': {
+      const place = await geocode(String(args.query ?? ''));
+      if (!place) return { error: `Couldn't find a place named "${args.query}"` };
+      actions.setMapView(place.lat, place.lon, place.zoom);
+      return { ok: true, movedTo: place.name, lat: place.lat, lon: place.lon };
+    }
     case 'setFilter':
       actions.setFilter(args);
       return { ok: true };
