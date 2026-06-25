@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore, visibleAircraft } from '../store/useStore';
 import { buildSnapshot } from '../ai/snapshot';
+import { getGlobalStats, summarizeGlobal } from '../data/globalStats';
 import type { ChatTurn } from '../ai/assistant';
 import { createAssistant, isAiConfigured, aiModelLabel } from '../ai/createAssistant';
 import type { ToolActions } from '../ai/tools';
@@ -74,7 +75,10 @@ export default function ChatPanel({
     setBusy(true);
     try {
       const assistant = createAssistant(settings, actions);
-      const reply = await assistant.send(turns, msg, buildSnapshot(visibleAircraft(useStore.getState())));
+      const onScreen = buildSnapshot(visibleAircraft(useStore.getState()));
+      const global = await getGlobalStats();
+      const context = global ? `${onScreen}\n\n${summarizeGlobal(global)}` : onScreen;
+      const reply = await assistant.send(turns, msg, context);
       setConnected(true);
       setTurns((t) => [...t, { role: 'model', text: reply.text, tools: reply.toolsUsed }]);
     } catch (err) {

@@ -1,6 +1,6 @@
 import type { Aircraft } from '../types';
 import type { Bounds } from '../util/geo';
-import { boundsCenter, boundsRadiusNm } from '../util/geo';
+import { boundsCenter, haversineKm, tileQueries } from '../util/geo';
 import type { FlightProvider } from './provider';
 
 interface RawAircraft {
@@ -46,18 +46,32 @@ export function normalizeAircraft(raw: RawAircraft, now: number): Aircraft {
 }
 
 export class AirplanesLiveProvider implements FlightProvider {
-  constructor(private base = 'https://api.airplanes.live/v2') {}
+  constructor(private base = 'https://api.airplanes.live/v2', private maxTiles = 9) {}
 
-  async poll(bounds: Bounds): Promise<Aircraft[]> {
-    const c = boundsCenter(bounds);
-    const radius = boundsRadiusNm(bounds);
-    const url = `${this.base}/point/${c.lat.toFixed(4)}/${c.lon.toFixed(4)}/${radius}`;
+  private async fetchPoint(lat: number, lon: number, radiusNm: number, now: number): Promise<Aircraft[]> {
+    const url = `${this.base}/point/${lat.toFixed(4)}/${lon.toFixed(4)}/${radiusNm}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`airplanes.live HTTP ${res.status}`);
     const data = (await res.json()) as { ac?: RawAircraft[] };
-    const now = Date.now();
     return (data.ac ?? [])
       .filter((a) => typeof a.lat === 'number' && typeof a.lon === 'number')
       .map((a) => normalizeAircraft(a, now));
+  }
+
+  async poll(bounds: Bounds): Promise<Aircraft[]> {
+    const tiles = tileQueries(bounds, this.maxTiles);
+    const now = Date.now();
+    const lists = await Promise.all(tiles.map((t) => this.fetchPoint(t.lat, t.lon, t.radiusNm, now)));
+
+    // Dedupe across overlapping tiles, then normalise distance to the map centre
+    // (the feed's per-tile distance is meaningless once tiles are merged).
+    const c = boundsCenter(bounds);
+    const byHex = new Map<string, Aircraft>();
+    for (const list of lists) {
+      for (const a of list) {
+        byHex.set(a.hex, { ...a, distanceNm: haversineKm(c.lat, c.lon, a.lat, a.lon) / 1.852 });
+      }
+    }
+    return Array.from(byHex.values());
   }
 }
