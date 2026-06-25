@@ -86,10 +86,13 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     onReady({ flyTo: (lat, lon, zoom) => map.flyTo({ center: [lon, lat], zoom }) });
 
-    // Re-add the overlay whenever a style finishes loading — covers the initial
-    // load AND every basemap switch (setStyle wipes custom sources/layers).
-    // addOverlay is idempotent, so calling it on each styledata is cheap.
-    map.on('styledata', () => { if (map.isStyleLoaded()) void addOverlay(map); });
+    // Reliable initial overlay add.
+    map.on('load', () => { void addOverlay(map); });
+    // Re-add after a basemap switch (setStyle wipes custom sources/layers).
+    // Guarded by getSource so it only fires when the overlay is actually missing.
+    map.on('styledata', () => {
+      if (map.isStyleLoaded() && !map.getSource(SRC)) void addOverlay(map);
+    });
 
     const updateBounds = () => {
       const b = map.getBounds();
