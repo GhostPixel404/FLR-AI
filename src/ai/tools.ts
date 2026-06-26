@@ -3,6 +3,7 @@ import { EMERGENCY_SQUAWKS } from '../types';
 import type { RouteInfo, AircraftInfo } from '../enrich/adsbdb';
 import type { StatsSummary } from '../stats/aggregate';
 import { geocode } from '../enrich/geocode';
+import { airlineFromCallsign } from '../data/airlines';
 
 export interface AircraftDetails { live: Aircraft | null; route: RouteInfo | null; info: AircraftInfo | null }
 
@@ -36,7 +37,7 @@ export const toolDeclarations = [
   { name: 'flyTo', description: 'Move the map to a place the USER named — an airport, city, country, or landmark. The `query` must come from the user\'s request; never invent or default a location. Resolves the name to coordinates.',
     parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'clearFilters', description: 'Remove all filters.', parameters: { type: 'object', properties: {} } },
-  { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type, airline callsign prefix, military, emergency, belowAltitude). Results include a distanceNm field (distance from where the user is) and are sorted nearest-first; a "nearest" field holds the closest match. Use this to answer "nearest"/"closest" questions and to find a hex id to track.',
+  { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type; airline as a name like "Emirates" or a callsign prefix like "UAE"; military, emergency, belowAltitude). Results include a distanceNm field (distance from where the user is) and are sorted nearest-first; a "nearest" field holds the closest match. Use this to answer "nearest"/"closest" questions and to find a hex id to track.',
     parameters: { type: 'object', properties: {
       type: { type: 'string' }, airline: { type: 'string' },
       military: { type: 'boolean' }, emergency: { type: 'boolean' },
@@ -91,7 +92,12 @@ export async function dispatchTool(
     case 'queryFlights': {
       const list = actions.getVisibleAircraft().filter((a) => {
         if (args.type && !(a.type ?? '').toLowerCase().includes(String(args.type).toLowerCase())) return false;
-        if (args.airline && !(a.callsign ?? '').toLowerCase().startsWith(String(args.airline).toLowerCase())) return false;
+        if (args.airline) {
+          const q = String(args.airline).toLowerCase();
+          const cs = (a.callsign ?? '').toLowerCase();
+          const name = (airlineFromCallsign(a.callsign) ?? '').toLowerCase();
+          if (!cs.startsWith(q) && !(name && name.includes(q))) return false;
+        }
         if (args.military && !a.military) return false;
         if (args.emergency && !(a.squawk && (EMERGENCY_SQUAWKS as readonly string[]).includes(a.squawk))) return false;
         if (args.belowAltitude != null && (a.altitude ?? Infinity) >= args.belowAltitude) return false;

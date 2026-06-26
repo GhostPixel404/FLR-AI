@@ -489,6 +489,24 @@ button, input, select, textarea {
 /* MapLibre attribution — keep it subtle and on-theme */
 .maplibregl-ctrl-attrib { font-size: 10px; border-radius: var(--r-pill) !important; }
 
+/* Hover tooltip on aircraft */
+.flr-hover-popup { pointer-events: none; }
+.flr-hover-popup .maplibregl-popup-content {
+  background: var(--glass-thick);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-1);
+  padding: 7px 11px;
+  font-family: var(--font-sans);
+}
+.flr-hover-popup .maplibregl-popup-tip { display: none; }
+.hp-title { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 7px; }
+.hp-airline { font-size: 11px; font-weight: 600; color: var(--text-2); }
+.hp-sub { font-size: 11px; color: var(--text-2); margin-top: 1px; font-variant-numeric: tabular-nums; }
+
 /* ---- Live count indicator ----------------------------------------------- */
 .list__count { display: flex; align-items: center; gap: 7px; }
 .list__count::before {

@@ -9,7 +9,11 @@ import { deadReckon } from '../poll/interpolate';
 import { getTrailLine } from '../poll/trails';
 import { styleFor } from './basemaps';
 import { effectiveTheme } from '../util/theme';
+import { formatAltitude, formatSpeed } from '../util/units';
+import { airlineFromCallsign } from '../data/airlines';
 import type { BasemapId, ThemePref } from '../types';
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 const SRC = 'aircraft';
 
@@ -119,8 +123,28 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
       const hex = e.features?.[0]?.properties?.hex as string | undefined;
       if (hex) useStore.getState().select(hex);
     });
+
+    // Hover tooltip — show flight info without clicking.
+    const hoverPopup = new maplibregl.Popup({
+      closeButton: false, closeOnClick: false, offset: 14, className: 'flr-hover-popup',
+    });
     map.on('mouseenter', 'aircraft-layer', () => (map.getCanvas().style.cursor = 'pointer'));
-    map.on('mouseleave', 'aircraft-layer', () => (map.getCanvas().style.cursor = ''));
+    map.on('mousemove', 'aircraft-layer', (e) => {
+      const hex = e.features?.[0]?.properties?.hex as string | undefined;
+      const a = hex ? useStore.getState().aircraft.get(hex) : undefined;
+      if (!a) { hoverPopup.remove(); return; }
+      const units = useStore.getState().settings.units;
+      const airline = airlineFromCallsign(a.callsign);
+      const html =
+        `<div class="hp-title">${esc(a.callsign ?? a.hex)}${airline ? `<span class="hp-airline">${esc(airline)}</span>` : ''}</div>` +
+        `<div class="hp-sub">${esc(a.type ?? '?')} · ${esc(formatAltitude(a.altitude, units))}` +
+        `${a.groundSpeed != null ? ` · ${esc(formatSpeed(a.groundSpeed, units))}` : ''}${a.registration ? ` · ${esc(a.registration)}` : ''}</div>`;
+      hoverPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+    });
+    map.on('mouseleave', 'aircraft-layer', () => {
+      map.getCanvas().style.cursor = '';
+      hoverPopup.remove();
+    });
 
     return () => map.remove();
   }, []);
