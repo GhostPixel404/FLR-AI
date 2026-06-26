@@ -99,7 +99,11 @@ export async function dispatchTool(
           if (!cs.startsWith(q) && !(name && name.includes(q))) return false;
         }
         if (args.military && !a.military) return false;
-        if (args.emergency && !(a.squawk && (EMERGENCY_SQUAWKS as readonly string[]).includes(a.squawk))) return false;
+        if (args.emergency) {
+          const emerg = (a.squawk && (EMERGENCY_SQUAWKS as readonly string[]).includes(a.squawk))
+            || (a.emergency != null && a.emergency !== 'none' && a.emergency !== '');
+          if (!emerg) return false;
+        }
         if (args.belowAltitude != null && (a.altitude ?? Infinity) >= args.belowAltitude) return false;
         return true;
       });

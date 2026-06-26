@@ -33,6 +33,16 @@ describe('buildSnapshot', () => {
     const many = Array.from({ length: 40 }, (_, i) => ac({ hex: `h${i}`, callsign: `CS${i}`, distanceNm: i }));
     const s = buildSnapshot(many);
     expect(s).toMatch(/40 aircraft are currently/);
-    expect((s.match(/\bCS\d+\b/g) ?? []).length).toBe(25);
+    // CS markers appear in the nearest-25 list (40 plain aircraft, no flag sections)
+    expect((s.match(/\bCS\d+ \|/g) ?? []).length).toBe(25);
+  });
+
+  it('lists an emergency aircraft even when it is beyond the nearest-25', () => {
+    const near = Array.from({ length: 40 }, (_, i) => ac({ hex: `n${i}`, callsign: `NEAR${i}`, distanceNm: i + 1 }));
+    const far = ac({ hex: 'mayday', callsign: 'PAN77', type: 'B738', squawk: '7700', distanceNm: 400 });
+    const s = buildSnapshot([...near, far]);
+    expect(s).toMatch(/EMERGENCY aircraft .* ALL 1 listed/);
+    expect(s).toMatch(/PAN77/);                 // present despite being the farthest
+    expect(s).toMatch(/\[EMERGENCY squawk 7700\]/);
   });
 });

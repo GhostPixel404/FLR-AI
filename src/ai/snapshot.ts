@@ -30,20 +30,38 @@ export function buildSnapshot(all: Aircraft[]): string {
     .map(([t, c]) => `${t}×${c}`).join(', ');
   const topAirlines = [...byAirline.entries()].sort((x, y) => y[1] - x[1]).slice(0, 12)
     .map(([t, c]) => `${t}×${c}`).join(', ');
-  const list = [...all].sort((a, b) => (a.distanceNm ?? Infinity) - (b.distanceNm ?? Infinity))
-    .slice(0, 25)
-    .map((a) => {
-      const airline = airlineFromCallsign(a.callsign);
-      return `${a.callsign ?? a.hex}${airline ? ` (${airline})` : ''} | ${a.type ?? '?'} | ${a.altitude != null ? Math.round(a.altitude) + 'ft' : 'ground'}`
-        + ` | ${a.groundSpeed != null ? Math.round(a.groundSpeed) + 'kt' : '-'}`
-        + `${a.distanceNm != null ? ` | ${Math.round(a.distanceNm)}nm` : ''}`
-        + `${a.registration ? ` | ${a.registration}` : ''}`;
-    })
-    .join('\n');
+  const dist = (a: Aircraft) => (a.distanceNm != null ? `${Math.round(a.distanceNm)}nm` : '?');
+  const byDist = (a: Aircraft, b: Aircraft) => (a.distanceNm ?? Infinity) - (b.distanceNm ?? Infinity);
+  const line = (a: Aircraft) => {
+    const airline = airlineFromCallsign(a.callsign);
+    const flags: string[] = [];
+    if (isEmerg(a)) flags.push(`EMERGENCY${a.squawk ? ` squawk ${a.squawk}` : ''}`);
+    if (a.military) flags.push('MILITARY');
+    if (a.onGround) flags.push('on ground');
+    return `${a.callsign ?? a.hex}${airline ? ` (${airline})` : ''} | ${a.type ?? '?'} | ${a.altitude != null ? Math.round(a.altitude) + 'ft' : 'ground'}`
+      + ` | ${a.groundSpeed != null ? Math.round(a.groundSpeed) + 'kt' : '-'} | ${dist(a)}`
+      + `${a.registration ? ` | ${a.registration}` : ''}${flags.length ? ` | [${flags.join(', ')}]` : ''}`;
+  };
+
+  const list = [...all].sort(byDist).slice(0, 25).map(line).join('\n');
+
+  // Emergencies and military are important — list ALL of them regardless of the
+  // 25-row cap, so the assistant never misses one the user can see on the map.
+  const emergencies = all.filter(isEmerg).sort(byDist);
+  const military = all.filter((a) => a.military).sort(byDist);
+  const emergBlock = emergencies.length
+    ? `\nEMERGENCY aircraft (squawking 7500/7600/7700 or flagged) — ALL ${emergencies.length} listed:\n${emergencies.map(line).join('\n')}`
+    : '\nNo emergency aircraft are on the map right now.';
+  const milBlock = military.length
+    ? `\nMILITARY aircraft — ALL ${military.length} listed:\n${military.slice(0, 30).map(line).join('\n')}`
+    : '';
+
   return `${all.length} aircraft are currently on the user's map `
     + `(${mil} military, ${emerg} emergency, ${ground} on the ground). `
     + `Distances are from the user's location; altitudes in feet, speeds in knots.\n`
     + `By type: ${topTypes}.\n`
     + (topAirlines ? `By airline: ${topAirlines}.\n` : '')
-    + `Nearest ${Math.min(25, all.length)} (callsign (airline) | type | altitude | speed | distance | reg):\n${list}`;
+    + `Nearest ${Math.min(25, all.length)} (callsign (airline) | type | altitude | speed | distance | reg | [flags]):\n${list}`
+    + emergBlock
+    + milBlock;
 }
