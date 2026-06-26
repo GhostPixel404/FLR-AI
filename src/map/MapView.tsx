@@ -184,7 +184,9 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
       const projected = Array.from(state.aircraft.values())
         .filter((a) => matchesFilters(a, state.filters))
         .map((a) => {
-          const p = deadReckon(a, (now - a.lastUpdate) / 1000);
+          // Cap extrapolation so a briefly-stale (retained) aircraft doesn't drift.
+          const secs = Math.min((now - a.lastUpdate) / 1000, 12);
+          const p = deadReckon(a, secs);
           return { ...a, lat: p.lat, lon: p.lon };
         });
       src.setData(toGeoJSON(projected, state.selectedHex));

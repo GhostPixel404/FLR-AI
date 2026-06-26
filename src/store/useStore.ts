@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { DEFAULT_FILTERS, type Aircraft, type Filters, type Settings } from '../types';
-import type { Bounds } from '../util/geo';
+import { boundsCenter, haversineKm, type Bounds } from '../util/geo';
+
+// Keep a recently-seen aircraft on the map this long after it drops out of the
+// feed, so transient ADS-B coverage gaps don't make planes flicker/disappear.
+const RETAIN_MS = 18_000;
 
 const SETTINGS_KEY = 'flr.settings';
 
@@ -48,7 +52,26 @@ export const useStore = create<AppState>((set, get) => ({
   settings: loadSettings(),
   stale: false,
   myLocation: null,
-  setAircraft: (list) => set({ aircraft: new Map(list.map((a) => [a.hex, a])) }),
+  setAircraft: (list) => {
+    const s = get();
+    const now = Date.now();
+    // Distance reference: the user's real location if known, else map centre.
+    const ref = s.myLocation ?? s.settings.home ?? (s.bounds ? boundsCenter(s.bounds) : null);
+    const next = new Map(s.aircraft);
+    const incoming = new Set(list.map((a) => a.hex));
+    for (const a of list) next.set(a.hex, a);
+    // Drop aircraft we haven't seen for a while (transient gaps are retained).
+    for (const [hex, a] of next) {
+      if (!incoming.has(hex) && now - a.lastUpdate > RETAIN_MS) next.delete(hex);
+    }
+    // Distance "nearest" everywhere is measured from the user (or map centre).
+    if (ref) {
+      for (const [hex, a] of next) {
+        next.set(hex, { ...a, distanceNm: haversineKm(ref.lat, ref.lon, a.lat, a.lon) / 1.852 });
+      }
+    }
+    set({ aircraft: next });
+  },
   select: (hex) => set({ selectedHex: hex }),
   follow: (hex) => set({ followedHex: hex }),
   setFilters: (patch) => set({ filters: { ...get().filters, ...patch } }),

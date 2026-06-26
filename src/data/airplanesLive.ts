@@ -61,7 +61,14 @@ export class AirplanesLiveProvider implements FlightProvider {
   async poll(bounds: Bounds): Promise<Aircraft[]> {
     const tiles = tileQueries(bounds, this.maxTiles);
     const now = Date.now();
-    const lists = await Promise.all(tiles.map((t) => this.fetchPoint(t.lat, t.lon, t.radiusNm, now)));
+    // allSettled so one flaky tile doesn't drop the whole poll (and with it,
+    // every aircraft). Only fail if EVERY tile failed.
+    const settled = await Promise.allSettled(tiles.map((t) => this.fetchPoint(t.lat, t.lon, t.radiusNm, now)));
+    const lists = settled.filter((r): r is PromiseFulfilledResult<Aircraft[]> => r.status === 'fulfilled').map((r) => r.value);
+    if (lists.length === 0) {
+      const reason = settled.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+      throw reason ? reason.reason : new Error('all tile queries failed');
+    }
 
     // Dedupe across overlapping tiles, then normalise distance to the map centre
     // (the feed's per-tile distance is meaningless once tiles are merged).

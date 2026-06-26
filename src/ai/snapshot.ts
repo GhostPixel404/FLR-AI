@@ -33,7 +33,7 @@ export function buildSnapshot(all: Aircraft[]): string {
     .join('\n');
   return `${all.length} aircraft are currently on the user's map `
     + `(${mil} military, ${emerg} emergency, ${ground} on the ground). `
-    + `Distances are from the map centre; altitudes in feet, speeds in knots.\n`
+    + `Distances are from the user's location; altitudes in feet, speeds in knots.\n`
     + `By type: ${topTypes}.\n`
     + `Nearest ${Math.min(25, all.length)} (callsign | type | altitude | speed | distance | reg):\n${list}`;
 }
