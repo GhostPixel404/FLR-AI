@@ -14,6 +14,8 @@ export interface ToolActions {
   trackAircraft: (hex: string) => boolean;
   untrack: () => void;
   getVisibleAircraft: () => Aircraft[];
+  /** Move the map AND fetch the aircraft at a location directly. */
+  scanAround: (lat: number, lon: number) => Promise<Aircraft[]>;
   getAircraftDetails: (idOrReg: string) => Promise<AircraftDetails>;
   getRoute: (callsign: string) => Promise<RouteInfo | null>;
   createAlert: (name: string, criteria: AlertCriteria) => Promise<string>;
@@ -34,7 +36,7 @@ export const toolDeclarations = [
       type: { type: 'string' }, airline: { type: 'string' },
       military: { type: 'boolean' }, emergency: { type: 'boolean' },
       onGround: { type: 'boolean' } } } },
-  { name: 'flyTo', description: 'Move the map to a place the USER named — an airport, city, country, or landmark. The `query` must come from the user\'s request; never invent or default a location. Resolves the name to coordinates.',
+  { name: 'flyTo', description: 'Move the map to a place the USER named (airport, city, country, landmark) AND return the aircraft currently at that location as an "aircraft" array (nearest-first). Use this to answer "what/where is X in <place>" in ONE turn. The `query` must come from the user\'s request; never invent or default a location.',
     parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'clearFilters', description: 'Remove all filters.', parameters: { type: 'object', properties: {} } },
   { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type; airline as a name like "Emirates" or a callsign prefix like "UAE"; military, emergency, belowAltitude). Results include a distanceNm field (distance from where the user is) and are sorted nearest-first; a "nearest" field holds the closest match. Use this to answer "nearest"/"closest" questions and to find a hex id to track.',
@@ -81,7 +83,13 @@ export async function dispatchTool(
       const place = await geocode(String(args.query ?? ''));
       if (!place) return { error: `Couldn't find a place named "${args.query}"` };
       actions.setMapView(place.lat, place.lon, place.zoom);
-      return { ok: true, movedTo: place.name, lat: place.lat, lon: place.lon };
+      // Fetch the destination's aircraft directly so we can answer in one turn.
+      const found = (await actions.scanAround(place.lat, place.lon))
+        .sort((a, b) => (a.distanceNm ?? Infinity) - (b.distanceNm ?? Infinity));
+      return {
+        ok: true, movedTo: place.name, count: found.length,
+        aircraft: found.slice(0, 30).map(summarizeAircraft),
+      };
     }
     case 'setFilter':
       actions.setFilter(args);

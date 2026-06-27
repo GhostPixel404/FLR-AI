@@ -18,6 +18,7 @@ function actions(): ToolActions {
     trackAircraft: vi.fn().mockReturnValue(true),
     untrack: vi.fn(),
     getVisibleAircraft: vi.fn().mockReturnValue([ac({ hex: 'a', type: 'A320' }), ac({ hex: 'b', type: 'B744', callsign: 'BAW2' })]),
+    scanAround: vi.fn().mockResolvedValue([ac({ hex: 'lhr1', type: 'B772', callsign: 'BAW100', distanceNm: 3 })]),
     getAircraftDetails: vi.fn().mockResolvedValue({ live: ac({}), route: null, info: null }),
     getRoute: vi.fn().mockResolvedValue(null),
     createAlert: vi.fn().mockResolvedValue('id-1'),
@@ -65,6 +66,8 @@ describe('dispatchTool', () => {
     const out = await dispatchTool('flyTo', { query: 'Tokyo' }, a);
     expect(a.setMapView).toHaveBeenCalledWith(35.68, 139.76, 10);
     expect(out.movedTo).toMatch(/Tokyo/);
+    expect(a.scanAround).toHaveBeenCalledWith(35.68, 139.76);
+    expect(out.aircraft[0].hex).toBe('lhr1'); // returns the destination's aircraft
     vi.unstubAllGlobals();
   });
   it('flyTo returns an error when the place is not found', async () => {

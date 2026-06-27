@@ -8,8 +8,12 @@ import type { ToolActions } from '../ai/tools';
 import { getRoute, getAircraftInfo } from '../enrich/adsbdb';
 import { saveRule, listRules, deleteRule } from '../alerts/alertStore';
 import { getSummary } from '../stats/statsStore';
+import { AirplanesLiveProvider } from '../data/airplanesLive';
+import { recordPositions } from '../poll/trails';
 import type { AlertCriteria } from '../types';
 import { newId } from '../util/id';
+
+const scanProvider = new AirplanesLiveProvider();
 import { ArrowUpIcon, CloseIcon } from './icons';
 
 /** Human-friendly labels for the tools the assistant can call. */
@@ -48,6 +52,18 @@ export default function ChatPanel({
     },
     untrack: () => useStore.getState().follow(null),
     getVisibleAircraft: () => visibleAircraft(useStore.getState()),
+    scanAround: async (lat, lon) => {
+      // ~70nm box around the target so the AI gets fresh aircraft there in one turn.
+      const dLat = 0.6;
+      const dLon = 0.6 / Math.max(0.2, Math.cos((lat * Math.PI) / 180));
+      const bounds = { north: lat + dLat, south: lat - dLat, east: lon + dLon, west: lon - dLon };
+      try {
+        const list = await scanProvider.poll(bounds);
+        useStore.getState().setAircraft(list); // reflect on the map + snapshot too
+        recordPositions(list);
+        return list;
+      } catch { return []; }
+    },
     getAircraftDetails: async (idOrReg) => {
       const list = visibleAircraft(useStore.getState());
       const live = list.find((a) => a.hex === idOrReg || a.registration === idOrReg
