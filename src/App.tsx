@@ -38,8 +38,12 @@ export default function App() {
     const v = Number(localStorage.getItem('flr.sidebarW'));
     return v >= 300 && v <= 560 ? v : 376;
   });
+  const [sidebarH, setSidebarH] = useState(() => {
+    const v = Number(localStorage.getItem('flr.sidebarH'));
+    return v >= 220 ? v : window.innerHeight - 24;
+  });
   const mapApiRef = useRef<{ flyTo: (lat: number, lon: number, zoom: number) => void }>({ flyTo: () => {} });
-  const sbDragging = useRef(false);
+  const sbDrag = useRef<{ right: boolean; bottom: boolean } | null>(null);
   const stale = useStore((s) => s.stale);
   const theme = useStore((s) => s.settings.theme);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -47,15 +51,32 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('flr.aiOpen', aiOpen ? '1' : '0'); }, [aiOpen]);
   useEffect(() => { localStorage.setItem('flr.sidebarW', String(sidebarW)); }, [sidebarW]);
+  useEffect(() => { localStorage.setItem('flr.sidebarH', String(sidebarH)); }, [sidebarH]);
 
-  // Sidebar resize (drag the right edge).
+  // Sidebar resize — drag the right edge (width), bottom edge (height), or corner.
   useEffect(() => {
-    const onMove = (e: MouseEvent) => { if (sbDragging.current) setSidebarW(clampWidth(e.clientX - 12)); };
-    const onUp = () => { sbDragging.current = false; document.body.style.userSelect = ''; };
+    const onMove = (e: MouseEvent) => {
+      const d = sbDrag.current;
+      if (!d) return;
+      if (d.right) setSidebarW(clampWidth(e.clientX - 12));
+      if (d.bottom) setSidebarH(Math.min(window.innerHeight - 24, Math.max(220, e.clientY - 12)));
+    };
+    const onUp = () => { sbDrag.current = null; document.body.style.userSelect = ''; };
+    const onResize = () => setSidebarH((h) => Math.min(h, window.innerHeight - 24));
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
+
+  const startSbResize = (right: boolean, bottom: boolean) => () => {
+    sbDrag.current = { right, bottom };
+    document.body.style.userSelect = 'none';
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -113,7 +134,7 @@ export default function App() {
         </div>
       )}
 
-      <aside className="sidebar glass" style={{ width: sidebarW }}>
+      <aside className="sidebar glass" style={{ width: sidebarW, height: sidebarH }}>
         <div className="sidebar__brand">
           <span className="sidebar__brand-mark"><PlaneIcon size={18} /></span>
           <div>
@@ -159,7 +180,9 @@ export default function App() {
           {tab === 'settings' && <Settings />}
         </div>
 
-        <div className="sidebar__resize" onMouseDown={() => { sbDragging.current = true; document.body.style.userSelect = 'none'; }} aria-hidden />
+        <div className="sidebar__resize" onMouseDown={startSbResize(true, false)} aria-hidden />
+        <div className="sidebar__resize-b" onMouseDown={startSbResize(false, true)} aria-hidden />
+        <div className="sidebar__resize-c" onMouseDown={startSbResize(true, true)} aria-hidden />
       </aside>
 
       {/* Floating selected-aircraft card — visible on every tab */}

@@ -165,7 +165,7 @@ button, input, select, textarea {
 
 .sidebar {
   position: absolute;
-  top: var(--sp-3); left: var(--sp-3); bottom: var(--sp-3);
+  top: var(--sp-3); left: var(--sp-3);
   z-index: var(--z-chrome);
   display: flex;
   flex-direction: column;
@@ -206,6 +206,21 @@ button, input, select, textarea {
   transition: opacity var(--dur);
 }
 .sidebar__resize:hover::after { opacity: 1; }
+.sidebar__resize-b {
+  position: absolute; left: 0; right: 8px; bottom: 0; height: 8px;
+  cursor: ns-resize; z-index: 5;
+}
+.sidebar__resize-b::after {
+  content: ''; position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%);
+  height: 3px; width: 36px; border-radius: 3px; background: var(--fill-2); opacity: 0;
+  transition: opacity var(--dur);
+}
+.sidebar__resize-b:hover::after { opacity: 1; }
+.sidebar__resize-c { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 6; }
+.sidebar__resize-c::after {
+  content: ''; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px;
+  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); border-bottom-right-radius: 3px;
+}
 .sidebar__title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
 .sidebar__subtitle { font-size: 11px; font-weight: 500; color: var(--text-2); letter-spacing: 0.02em; }
 .sidebar__body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
