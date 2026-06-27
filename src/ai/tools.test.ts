@@ -70,6 +70,18 @@ describe('dispatchTool', () => {
     expect(out.aircraft[0].hex).toBe('lhr1'); // returns the destination's aircraft
     vi.unstubAllGlobals();
   });
+  it('flyTo with `find` moves there and tracks the matching aircraft in one call', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ lat: '51.5', lon: '-0.1', display_name: 'London, UK', addresstype: 'city', type: 'city', class: 'place' }],
+    } as Response));
+    const a = actions(); // scanAround returns a B772 (hex 'lhr1')
+    const out = await dispatchTool('flyTo', { query: 'London', find: '777' }, a);
+    expect(a.setMapView).toHaveBeenCalled();
+    expect(a.trackAircraft).toHaveBeenCalledWith('lhr1');
+    expect(out.tracked.hex).toBe('lhr1');
+    vi.unstubAllGlobals();
+  });
   it('flyTo returns an error when the place is not found', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] } as Response));
     const out = await dispatchTool('flyTo', { query: 'asdfqwer' }, actions());

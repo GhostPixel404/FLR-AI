@@ -4,6 +4,7 @@ import type { RouteInfo, AircraftInfo } from '../enrich/adsbdb';
 import type { StatsSummary } from '../stats/aggregate';
 import { geocode } from '../enrich/geocode';
 import { airlineFromCallsign } from '../data/airlines';
+import { matchesType } from '../data/aircraftTypes';
 
 export interface AircraftDetails { live: Aircraft | null; route: RouteInfo | null; info: AircraftInfo | null }
 
@@ -36,8 +37,8 @@ export const toolDeclarations = [
       type: { type: 'string' }, airline: { type: 'string' },
       military: { type: 'boolean' }, emergency: { type: 'boolean' },
       onGround: { type: 'boolean' } } } },
-  { name: 'flyTo', description: 'Move the map to a place the USER named (airport, city, country, landmark) AND return the aircraft currently at that location as an "aircraft" array (nearest-first). Use this to answer "what/where is X in <place>" in ONE turn. The `query` must come from the user\'s request; never invent or default a location.',
-    parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+  { name: 'flyTo', description: 'Move the map to a place the USER named (airport, city, country, landmark) AND fetch the aircraft there. If `find` is given (an aircraft type like "777"/"a380" or an airline like "Emirates"), it also locates the NEAREST matching aircraft and TRACKS it automatically — use this for "show me a 777 in London" in ONE call (do not call trackAircraft separately). Returns the destination\'s aircraft (and the tracked one). `query` must come from the user.',
+    parameters: { type: 'object', properties: { query: { type: 'string' }, find: { type: 'string' } }, required: ['query'] } },
   { name: 'clearFilters', description: 'Remove all filters.', parameters: { type: 'object', properties: {} } },
   { name: 'queryFlights', description: 'Return currently visible aircraft matching optional criteria (type; airline as a name like "Emirates" or a callsign prefix like "UAE"; military, emergency, belowAltitude). Results include a distanceNm field (distance from where the user is) and are sorted nearest-first; a "nearest" field holds the closest match. Use this to answer "nearest"/"closest" questions and to find a hex id to track.',
     parameters: { type: 'object', properties: {
@@ -86,6 +87,24 @@ export async function dispatchTool(
       // Fetch the destination's aircraft directly so we can answer in one turn.
       const found = (await actions.scanAround(place.lat, place.lon))
         .sort((a, b) => (a.distanceNm ?? Infinity) - (b.distanceNm ?? Infinity));
+
+      if (args.find) {
+        const q = String(args.find).toLowerCase();
+        const match = found.find((a) =>
+          matchesType(a.type, String(args.find))
+          || (airlineFromCallsign(a.callsign) ?? '').toLowerCase().includes(q)
+          || (a.callsign ?? '').toLowerCase().startsWith(q));
+        if (match) {
+          actions.trackAircraft(match.hex); // selects + follows it at the destination
+          return { ok: true, movedTo: place.name, tracked: summarizeAircraft(match), count: found.length };
+        }
+        return {
+          ok: true, movedTo: place.name, found: false,
+          note: `No "${args.find}" is at ${place.name} right now.`,
+          count: found.length, aircraft: found.slice(0, 15).map(summarizeAircraft),
+        };
+      }
+
       return {
         ok: true, movedTo: place.name, count: found.length,
         aircraft: found.slice(0, 30).map(summarizeAircraft),
@@ -99,7 +118,7 @@ export async function dispatchTool(
       return { ok: true };
     case 'queryFlights': {
       const list = actions.getVisibleAircraft().filter((a) => {
-        if (args.type && !(a.type ?? '').toLowerCase().includes(String(args.type).toLowerCase())) return false;
+        if (args.type && !matchesType(a.type, String(args.type))) return false;
         if (args.airline) {
           const q = String(args.airline).toLowerCase();
           const cs = (a.callsign ?? '').toLowerCase();
