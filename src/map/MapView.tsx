@@ -18,8 +18,10 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const SRC = 'aircraft';
 
 /** A key that changes whenever the resolved basemap style should change. */
-function styleKey(basemap: BasemapId, theme: ThemePref): string {
-  return basemap === 'auto' ? `auto:${effectiveTheme(theme)}` : basemap;
+function styleKey(basemap: BasemapId, theme: ThemePref, maptilerKey: string): string {
+  if (basemap === 'auto') return `auto:${effectiveTheme(theme)}`;
+  if (basemap.startsWith('mt-')) return `${basemap}:${maptilerKey}`;
+  return basemap;
 }
 
 /** Add the aircraft / trail / emergency overlay on top of the current basemap.
@@ -86,6 +88,7 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
   const locMarkerRef = useRef<maplibregl.Marker | null>(null);
   const basemap = useStore((s) => s.settings.basemap);
   const theme = useStore((s) => s.settings.theme);
+  const maptilerKey = useStore((s) => s.settings.maptilerKey);
   const myLocation = useStore((s) => s.myLocation);
   const styleKeyRef = useRef<string>('');
 
@@ -97,7 +100,7 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     const home = useStore.getState().settings.home;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: styleFor(basemap),
+      style: styleFor(basemap, maptilerKey),
       center: home ? [home.lon, home.lat] : [0, 25],
       zoom: home ? 10 : 3.2,
       attributionControl: false,
@@ -153,15 +156,15 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const key = styleKey(basemap, theme);
+    const key = styleKey(basemap, theme, maptilerKey);
     if (styleKeyRef.current === '') { styleKeyRef.current = key; return; } // initial style already set
     if (key === styleKeyRef.current) return;
     styleKeyRef.current = key;
-    map.setStyle(styleFor(basemap));
+    map.setStyle(styleFor(basemap, maptilerKey));
     // Poll until the new style is ready, then re-add the aircraft overlay, so
     // flights keep showing after a basemap change.
     ensureOverlay(map);
-  }, [basemap, theme]);
+  }, [basemap, theme, maptilerKey]);
 
   // Draw / move the "my location" marker and recentre when it updates.
   useEffect(() => {

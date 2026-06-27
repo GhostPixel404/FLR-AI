@@ -10,7 +10,7 @@ import { saveRule, listRules, deleteRule } from '../alerts/alertStore';
 import { getSummary } from '../stats/statsStore';
 import type { AlertCriteria } from '../types';
 import { newId } from '../util/id';
-import { ArrowUpIcon } from './icons';
+import { ArrowUpIcon, CloseIcon } from './icons';
 
 /** Human-friendly labels for the tools the assistant can call. */
 const TOOL_LABELS: Record<string, string> = {
@@ -23,8 +23,13 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 export default function ChatPanel({
-  flyTo, onOpenSettings,
-}: { flyTo: (lat: number, lon: number, zoom: number) => void; onOpenSettings: () => void }) {
+  flyTo, onOpenSettings, onClose, onDragStart,
+}: {
+  flyTo: (lat: number, lon: number, zoom: number) => void;
+  onOpenSettings: () => void;
+  onClose?: () => void;
+  onDragStart?: (e: React.MouseEvent) => void;
+}) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -97,12 +102,19 @@ export default function ChatPanel({
 
   return (
     <div className="chat">
-      <div className="chat__header">
+      <div className={`chat__header ${onDragStart ? 'is-draggable' : ''}`} onMouseDown={onDragStart}>
         <span className="chat__header-title">Assistant</span>
-        <button className={status.cls} onClick={status.onClick} disabled={!status.onClick} type="button">
+        <button className={status.cls} onMouseDown={(e) => e.stopPropagation()}
+          onClick={status.onClick} disabled={!status.onClick} type="button">
           <span className={`status-dot status-dot--${status.dot}`} />
           {status.text}
         </button>
+        {onClose && (
+          <button className="chat__close" aria-label="Close assistant"
+            onMouseDown={(e) => e.stopPropagation()} onClick={onClose}>
+            <CloseIcon size={15} />
+          </button>
+        )}
       </div>
 
       <div className="chat__scroll scroll-area">

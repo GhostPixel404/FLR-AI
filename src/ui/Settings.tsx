@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { locateMe } from '../util/locate';
-import { BASEMAP_OPTIONS } from '../map/basemaps';
+import { basemapOptions } from '../map/basemaps';
 import { testConnection, type TestResult } from '../ai/createAssistant';
 import { LocateIcon } from './icons';
 
@@ -121,8 +121,14 @@ export default function Settings() {
         <label>Basemap</label>
         <select className="field" value={settings.basemap}
           onChange={(e) => update({ basemap: e.target.value as any })}>
-          {BASEMAP_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          {basemapOptions(settings.maptilerKey).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
+      </div>
+      <div className="form-row">
+        <label>MapTiler API key (optional)</label>
+        <input className="field" type="password" placeholder="Unlocks premium tactical styles"
+          value={settings.maptilerKey} onChange={(e) => update({ maptilerKey: e.target.value })} />
+        <div className="muted">Free key at <code>maptiler.com</code> → adds Dataviz Dark, Backdrop, Ocean &amp; Streets Dark to the basemap list.</div>
       </div>
       <div className="form-row">
         <label>Refresh interval (seconds)</label>

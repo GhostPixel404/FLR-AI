@@ -59,7 +59,9 @@ export interface Sighting {
   count: number;                // number of polls seen in
 }
 
-export type BasemapId = 'auto' | 'light' | 'dark' | 'satellite';
+export type BasemapId =
+  | 'auto' | 'light' | 'dark' | 'tactical' | 'satellite'
+  | 'mt-dataviz' | 'mt-backdrop' | 'mt-ocean' | 'mt-streets';
 export type ThemePref = 'system' | 'light' | 'dark';
 export type AiProvider = 'gemini' | 'openai';
 
@@ -71,6 +73,7 @@ export interface Settings {
   openaiBaseUrl: string;
   openaiApiKey: string;
   openaiModel: string;
+  maptilerKey: string;
   units: UnitSystem;
   refreshSeconds: number;
   home: { lat: number; lon: number } | null;

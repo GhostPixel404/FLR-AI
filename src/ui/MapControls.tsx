@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { locateMe } from '../util/locate';
-import { BASEMAP_OPTIONS } from '../map/basemaps';
+import { basemapOptions } from '../map/basemaps';
 import { LocateIcon, LayersIcon } from './icons';
 
 export default function MapControls() {
   const basemap = useStore((s) => s.settings.basemap);
+  const maptilerKey = useStore((s) => s.settings.maptilerKey);
   const update = useStore((s) => s.updateSettings);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -25,7 +26,7 @@ export default function MapControls() {
         {menuOpen && (
           <div className="map-menu glass glass-thick" role="menu">
             <div className="map-menu__label">Map style</div>
-            {BASEMAP_OPTIONS.map((o) => (
+            {basemapOptions(maptilerKey).map((o) => (
               <button
                 key={o.id} role="menuitemradio" aria-checked={basemap === o.id}
                 className={`map-menu__item ${basemap === o.id ? 'is-active' : ''}`}

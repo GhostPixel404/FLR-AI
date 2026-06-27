@@ -12,6 +12,7 @@ const defaultSettings: Settings = {
   aiProvider: 'gemini',
   geminiApiKey: '', geminiModel: 'gemini-2.5-flash',
   openaiBaseUrl: 'https://openrouter.ai/api/v1', openaiApiKey: '', openaiModel: '',
+  maptilerKey: '',
   units: 'imperial',
   refreshSeconds: 6, home: null, basemap: 'auto', theme: 'system',
 };
