@@ -80,7 +80,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') useStore.getState().select(null);
+      if (e.key === 'Escape') { const s = useStore.getState(); s.select(null); s.follow(null); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

@@ -131,6 +131,10 @@ export default function MapView({ onReady }: { onReady: (api: { flyTo: (lat: num
     const hoverPopup = new maplibregl.Popup({
       closeButton: false, closeOnClick: false, offset: 14, className: 'flr-hover-popup',
     });
+    // Dragging the map cancels follow mode, so the user can always pan away.
+    map.on('dragstart', () => {
+      if (useStore.getState().followedHex) useStore.getState().follow(null);
+    });
     map.on('mouseenter', 'aircraft-layer', () => (map.getCanvas().style.cursor = 'pointer'));
     map.on('mousemove', 'aircraft-layer', (e) => {
       const hex = e.features?.[0]?.properties?.hex as string | undefined;
